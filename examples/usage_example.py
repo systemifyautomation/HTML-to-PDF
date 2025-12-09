@@ -5,7 +5,6 @@ This script sends various requests to the API and saves the generated PDFs.
 """
 
 import requests
-import json
 import os
 
 # API endpoint
