@@ -5,7 +5,6 @@ A Flask-based REST API for converting HTML content to PDF documents.
 
 from flask import Flask, request, send_file, jsonify
 from weasyprint import HTML, CSS
-from jinja2 import Template
 import io
 import os
 import logging
