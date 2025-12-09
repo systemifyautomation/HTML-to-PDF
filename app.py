@@ -51,7 +51,7 @@ def health():
     """
     return jsonify({
         'status': 'healthy',
-        'timestamp': datetime.utcnow().isoformat()
+        'timestamp': datetime.now().isoformat()
     })
 
 @app.route('/convert', methods=['POST'])
@@ -94,13 +94,11 @@ def convert_html_to_pdf():
         
         if css_content:
             # Create HTML with CSS
-            html = HTML(string=html_content)
-            css = CSS(string=css_content)
-            html.write_pdf(pdf_buffer, stylesheets=[css])
+            stylesheets = [CSS(string=css_content)]
+            HTML(string=html_content).write_pdf(pdf_buffer, stylesheets=stylesheets)
         else:
             # Create HTML without additional CSS
-            html = HTML(string=html_content)
-            html.write_pdf(pdf_buffer)
+            HTML(string=html_content).write_pdf(pdf_buffer)
         
         # Reset buffer position to beginning
         pdf_buffer.seek(0)
