@@ -1,0 +1,32 @@
+{
+  "super_user": {
+    "key": "super-admin-key-change-this-immediately",
+    "name": "Super Admin",
+    "created": "2025-12-10",
+    "note": "This key has full admin access to manage all other keys"
+  },
+  "api_keys": [
+    {
+      "key": "your-first-api-key-here",
+      "name": "Production Key 1",
+      "created": "2025-12-10",
+      "active": true
+    },
+    {
+      "key": "your-second-api-key-here",
+      "name": "Development Key",
+      "created": "2025-12-10",
+      "active": true
+    },
+    {
+      "key": "your-third-api-key-here",
+      "name": "Client A",
+      "created": "2025-12-10",
+      "active": false
+    }
+  ],
+  "rate_limit": {
+    "requests_per_minute": 60,
+    "requests_per_hour": 1000
+  }
+}

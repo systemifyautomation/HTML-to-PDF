@@ -149,6 +149,7 @@ Convert HTML content to a PDF document.
 **Request Headers:**
 ```
 Content-Type: application/json
+X-API-Key: your-api-key-here
 ```
 
 **Request Body:**
@@ -170,6 +171,8 @@ Content-Type: application/json
 
 **Response:**
 - **Success (200)**: Returns PDF file as attachment
+- **Error (401)**: Missing API key
+- **Error (403)**: Invalid API key
 - **Error (400)**: Invalid request or missing HTML content
 - **Error (413)**: Request too large (max 16MB)
 - **Error (500)**: Server error during conversion
@@ -187,6 +190,7 @@ Content-Disposition: attachment; filename="my-document.pdf"
 ```bash
 curl -X POST http://localhost:5000/convert \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key-here" \
   -d '{
     "html": "<!DOCTYPE html><html><body><h1>Hello PDF!</h1><p>This is a test document.</p></body></html>",
     "filename": "test.pdf"
@@ -216,6 +220,9 @@ html_content = """
 # Send request to API
 response = requests.post(
     'http://localhost:5000/convert',
+    headers={
+        'X-API-Key': 'your-api-key-here'
+    },
     json={
         'html': html_content,
         'filename': 'invoice.pdf'
@@ -249,7 +256,8 @@ const html = `
 fetch('http://localhost:5000/convert', {
     method: 'POST',
     headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-API-Key': 'your-api-key-here'
     },
     body: JSON.stringify({
         html: html,
@@ -337,6 +345,35 @@ You can configure the application using environment variables:
 |----------|---------|---------------------------------------|
 | PORT     | 5000    | Port number for the API server        |
 | DEBUG    | False   | Enable debug mode (True/False)        |
+| API_KEY  | None    | API key for authentication (required for production) |
+
+### Setting Up API Authentication
+
+**1. Generate a secure API key:**
+
+```bash
+# Using Python
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# Or use any secure random string generator
+```
+
+**2. Create a `.env` file:**
+
+Copy `.env.example` to `.env` and set your API key:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+```env
+PORT=9001
+DEBUG=False
+API_KEY=your-generated-secure-api-key-here
+```
+
+**3. The `.env` file is in `.gitignore`** - it will NOT be committed to GitHub, keeping your API key secure.
 
 ### Setting Environment Variables
 
@@ -344,6 +381,7 @@ You can configure the application using environment variables:
 ```bash
 export PORT=8080
 export DEBUG=True
+export API_KEY=your-api-key-here
 python app.py
 ```
 
@@ -351,15 +389,17 @@ python app.py
 ```cmd
 set PORT=8080
 set DEBUG=True
+set API_KEY=your-api-key-here
 python app.py
 ```
 
-**Using .env file:**
+**Using .env file (Recommended):**
 
 Create a `.env` file in the project root:
-```
-PORT=8080
+```env
+PORT=9001
 DEBUG=False
+API_KEY=your-secure-api-key-here
 ```
 
 The application will automatically load these variables.

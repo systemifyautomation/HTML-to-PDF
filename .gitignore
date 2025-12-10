@@ -46,3 +46,7 @@ output/
 
 # Environment variables
 .env
+
+# API Keys (NEVER commit this!)
+.api-keys.json
+api-keys.json

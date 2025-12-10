@@ -137,22 +137,92 @@ sudo systemctl start htmltopdf
 sudo systemctl status htmltopdf
 ```
 
-### 9. Configure Firewall (if applicable)
+### 9. Set Up SSL with Nginx (Recommended for Production)
+
+**Option A: Automated Setup (Easiest)**
 
 ```bash
-# Allow port 9000
-sudo ufw allow 9000/tcp
+# Make script executable
+chmod +x ~/HTML-to-PDF/deployment/setup-ssl.sh
+
+# Run the SSL setup script
+sudo ~/HTML-to-PDF/deployment/setup-ssl.sh
+```
+
+This script will:
+- Install Nginx and Certbot
+- Configure Nginx as reverse proxy
+- Obtain free SSL certificate from Let's Encrypt
+- Set up automatic certificate renewal
+- Configure HTTPS on port 443
+
+**Option B: Manual Setup**
+
+```bash
+# Install Nginx and Certbot
+sudo apt update
+sudo apt install -y nginx certbot python3-certbot-nginx
+
+# Copy Nginx configuration
+sudo cp ~/HTML-to-PDF/deployment/nginx.conf /etc/nginx/sites-available/htmltopdf
+
+# Enable site
+sudo ln -s /etc/nginx/sites-available/htmltopdf /etc/nginx/sites-enabled/
+
+# Remove default site (optional)
+sudo rm -f /etc/nginx/sites-enabled/default
+
+# Test configuration
+sudo nginx -t
+
+# Restart Nginx
+sudo systemctl restart nginx
+sudo systemctl enable nginx
+
+# Obtain SSL certificate
+sudo certbot --nginx -d htmltopdf.systemifyautomation.com
+
+# Enable automatic renewal
+sudo systemctl enable certbot.timer
+sudo systemctl start certbot.timer
+```
+
+### 10. Configure Firewall
+
+```bash
+# Allow HTTP and HTTPS
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# Optional: Allow direct access to app (if not using Nginx)
+sudo ufw allow 9001/tcp
+
 sudo ufw reload
 ```
 
-### 10. Test the Deployment
+### 11. Test the Deployment
 
+**Without SSL (direct to app):**
+```bash
+curl http://localhost:9001/health
+```
+
+**With SSL (through Nginx):**
 ```bash
 # From your VPS
-curl http://localhost:9000/health
+curl https://localhost/health
 
 # From your local machine
-curl http://htmltopdf.systemifyautomation.com:9000/health
+curl https://htmltopdf.systemifyautomation.com/health
+```
+
+**Test PDF conversion with authentication:**
+```bash
+curl -X POST https://htmltopdf.systemifyautomation.com/convert \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{"html": "<h1>Test</h1>", "filename": "test.pdf"}' \
+  --output test.pdf
 ```
 
 ## 🔄 Updating the Application
@@ -216,47 +286,34 @@ sudo systemctl disable htmltopdf
 4. **Rate Limiting**: Implement rate limiting for production use
 5. **Updates**: Keep system and dependencies updated
 
-## 🌐 Optional: Nginx Reverse Proxy with SSL
+## 📊 SSL Certificate Management
 
-For production, it's recommended to use Nginx as a reverse proxy with SSL:
-
+### Check Certificate Status
 ```bash
-# Install Nginx and Certbot
-sudo apt-get install -y nginx certbot python3-certbot-nginx
+# View certificate details
+sudo certbot certificates
 
-# Create Nginx configuration
-sudo nano /etc/nginx/sites-available/htmltopdf
+# Check expiration
+sudo certbot renew --dry-run
 ```
 
-Add configuration:
-```nginx
-server {
-    listen 80;
-    server_name htmltopdf.systemifyautomation.com;
+### Manual Certificate Renewal
+```bash
+# Renew all certificates
+sudo certbot renew
 
-    location / {
-        proxy_pass http://127.0.0.1:9000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        client_max_body_size 16M;
-    }
-}
+# Renew and restart Nginx
+sudo certbot renew --deploy-hook "systemctl reload nginx"
 ```
 
+### Certificate Auto-Renewal
+Certificates automatically renew via systemd timer:
 ```bash
-# Enable site
-sudo ln -s /etc/nginx/sites-available/htmltopdf /etc/nginx/sites-enabled/
+# Check renewal timer status
+sudo systemctl status certbot.timer
 
-# Test configuration
-sudo nginx -t
-
-# Restart Nginx
-sudo systemctl restart nginx
-
-# Get SSL certificate
-sudo certbot --nginx -d htmltopdf.systemifyautomation.com
+# View renewal logs
+sudo journalctl -u certbot.renew.service
 ```
 
 ## 📊 Monitoring
