@@ -5,6 +5,7 @@ A Flask-based REST API for converting HTML content to PDF documents.
 
 from flask import Flask, request, send_file, jsonify
 from weasyprint import HTML, CSS
+from weasyprint.text.fonts import FontConfiguration
 import io
 import os
 import json
@@ -13,6 +14,8 @@ from datetime import datetime, timedelta
 from functools import wraps
 from dotenv import load_dotenv
 from collections import defaultdict
+import re
+from urllib.parse import urljoin, urlparse
 
 # Load environment variables
 load_dotenv()
@@ -201,6 +204,107 @@ def require_super_user(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def sanitize_and_enhance_html(html_content, base_url=None):
+    """
+    Sanitize and enhance HTML for better PDF rendering.
+    
+    Args:
+        html_content: Raw HTML string
+        base_url: Base URL for resolving relative URLs
+    
+    Returns:
+        Enhanced HTML string
+    """
+    # Ensure HTML has proper structure
+    if not re.search(r'<!DOCTYPE\s+html>', html_content, re.IGNORECASE):
+        html_content = '<!DOCTYPE html>\n' + html_content
+    
+    # Ensure html tag exists
+    if not re.search(r'<html[^>]*>', html_content, re.IGNORECASE):
+        html_content = re.sub(r'<!DOCTYPE html>\s*', '<!DOCTYPE html>\n<html>\n', html_content, flags=re.IGNORECASE)
+        html_content += '\n</html>'
+    
+    # Ensure head tag exists
+    if not re.search(r'<head[^>]*>', html_content, re.IGNORECASE):
+        html_content = re.sub(r'(<html[^>]*>)', r'\1\n<head></head>', html_content, flags=re.IGNORECASE)
+    
+    # Ensure body tag exists
+    if not re.search(r'<body[^>]*>', html_content, re.IGNORECASE):
+        # Find content between </head> and </html> or start of content
+        html_content = re.sub(r'(</head>\s*)', r'\1<body>\n', html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r'(</html>)', r'</body>\n\1', html_content, flags=re.IGNORECASE)
+    
+    # Add charset if missing
+    if not re.search(r'<meta[^>]*charset', html_content, re.IGNORECASE):
+        html_content = re.sub(
+            r'(<head[^>]*>)',
+            r'\1\n    <meta charset="UTF-8">',
+            html_content,
+            flags=re.IGNORECASE
+        )
+    
+    # Add base tag if base_url is provided
+    if base_url and not re.search(r'<base[^>]*href', html_content, re.IGNORECASE):
+        html_content = re.sub(
+            r'(<head[^>]*>)',
+            f'\\1\n    <base href="{base_url}">',
+            html_content,
+            flags=re.IGNORECASE
+        )
+    
+    return html_content
+
+def get_default_pdf_css():
+    """
+    Get default CSS optimizations for PDF rendering.
+    
+    Returns:
+        CSS string with PDF-specific styles
+    """
+    return """
+        /* PDF-specific optimizations */
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        
+        /* Prevent awkward page breaks */
+        h1, h2, h3, h4, h5, h6 {
+            page-break-after: avoid;
+            page-break-inside: avoid;
+        }
+        
+        table, figure, img {
+            page-break-inside: avoid;
+        }
+        
+        /* Better text rendering */
+        body {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+        
+        /* Ensure images fit on page */
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        /* Better table rendering */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        
+        /* Handle links for print */
+        @media print {
+            a[href]:after {
+                content: none !important;
+            }
+        }
+    """
+
 @app.route('/', methods=['GET'])
 def home():
     """
@@ -219,10 +323,22 @@ def home():
             'method': 'POST',
             'content-type': 'application/json',
             'body': {
-                'html': 'HTML content as string',
+                'html': 'HTML content as string (required)',
                 'css': 'Optional CSS styles as string',
-                'filename': 'Optional output filename (default: document.pdf)'
-            }
+                'filename': 'Optional output filename (default: document.pdf)',
+                'base_url': 'Optional base URL for resolving relative URLs (for images, stylesheets, etc.)',
+                'page_size': 'Optional page size: A4, A3, Letter, Legal, etc. (default: A4)',
+                'margin': 'Optional page margins in CSS units like 2cm, 1in (default: 2cm)',
+                'optimize': 'Optional PDF optimization flag (default: true)'
+            },
+            'improvements': [
+                'Automatic HTML structure validation and correction',
+                'Smart page break handling',
+                'Image and font optimization',
+                'External resource loading via base_url',
+                'Better text rendering and typography',
+                'Responsive image sizing'
+            ]
         }
     })
 
@@ -246,6 +362,10 @@ def convert_html_to_pdf():
     - html: HTML content (required)
     - css: CSS styles (optional)
     - filename: Output PDF filename (optional, default: document.pdf)
+    - base_url: Base URL for resolving relative URLs (optional)
+    - page_size: Page size like 'A4', 'Letter', 'Legal' (optional, default: A4)
+    - margin: Page margins in CSS units like '2cm', '1in' (optional)
+    - optimize: Enable PDF optimization (optional, default: true)
     
     Returns:
     - PDF file as attachment
@@ -262,31 +382,59 @@ def convert_html_to_pdf():
         if not html_content:
             return jsonify({'error': 'HTML content is required'}), 400
         
-        # Extract optional CSS
+        # Extract optional parameters
         css_content = data.get('css', '')
-        
-        # Extract optional filename
         filename = data.get('filename', 'document.pdf')
+        base_url = data.get('base_url', None)
+        page_size = data.get('page_size', 'A4')
+        margin = data.get('margin', '2cm')
+        optimize = data.get('optimize', True)
+        
         if not filename.endswith('.pdf'):
             filename += '.pdf'
         
-        logger.info(f"Converting HTML to PDF: {filename}")
+        logger.info(f"Converting HTML to PDF: {filename} (page_size={page_size}, optimize={optimize})")
         
-        # Create PDF from HTML
+        # Sanitize and enhance HTML
+        html_content = sanitize_and_enhance_html(html_content, base_url)
+        
+        # Build CSS with PDF optimizations
+        stylesheets = []
+        font_config = FontConfiguration()
+        
+        # Add default PDF CSS
+        default_css = get_default_pdf_css()
+        
+        # Add custom page size and margins
+        page_css = f"""
+            @page {{
+                size: {page_size};
+                margin: {margin};
+            }}
+        """
+        
+        # Combine all CSS
+        combined_css = default_css + page_css
+        if css_content:
+            combined_css += "\n" + css_content
+        
+        stylesheets.append(CSS(string=combined_css, font_config=font_config))
+        
+        # Create PDF from HTML with optimizations
         pdf_buffer = io.BytesIO()
         
-        if css_content:
-            # Create HTML with CSS
-            stylesheets = [CSS(string=css_content)]
-            HTML(string=html_content).write_pdf(pdf_buffer, stylesheets=stylesheets)
-        else:
-            # Create HTML without additional CSS
-            HTML(string=html_content).write_pdf(pdf_buffer)
+        html_obj = HTML(string=html_content, base_url=base_url, encoding='utf-8')
+        html_obj.write_pdf(
+            pdf_buffer,
+            stylesheets=stylesheets,
+            font_config=font_config,
+            optimize_size=('fonts', 'images') if optimize else ()
+        )
         
         # Reset buffer position to beginning
         pdf_buffer.seek(0)
         
-        logger.info(f"PDF generated successfully: {filename}")
+        logger.info(f"PDF generated successfully: {filename} ({pdf_buffer.getbuffer().nbytes} bytes)")
         
         # Return PDF as downloadable file
         return send_file(
@@ -297,8 +445,11 @@ def convert_html_to_pdf():
         )
         
     except Exception as e:
-        logger.error(f"Error converting HTML to PDF: {str(e)}")
-        return jsonify({'error': f'Failed to convert HTML to PDF: {str(e)}'}), 500
+        logger.error(f"Error converting HTML to PDF: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': f'Failed to convert HTML to PDF: {str(e)}',
+            'type': type(e).__name__
+        }), 500
 
 # ============================================================================
 # ADMIN ENDPOINTS - API Key Management (Super User Only)

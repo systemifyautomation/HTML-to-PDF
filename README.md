@@ -106,12 +106,19 @@ graph LR
 
 - ✅ **REST API** - Simple JSON endpoints for PDF generation
 - ✅ **High-Quality Output** - Professional PDF rendering using WeasyPrint
+- ✅ **Smart HTML Processing** - Automatic structure validation and correction
+- ✅ **External Resources** - Load images and stylesheets via base URL
 - ✅ **Custom CSS Styling** - Full control over document appearance
+- ✅ **Smart Page Breaks** - Intelligent content flow across pages
+- ✅ **Custom Page Sizes** - Support for A4, Letter, Legal, and more
+- ✅ **PDF Optimization** - Automatic font and image compression
 - ✅ **Multi-Key Authentication** - Secure API key management system
 - ✅ **Rate Limiting** - Protect your API with configurable limits (60/min, 1000/hr)
 - ✅ **Admin API** - Manage API keys via HTTP endpoints
 - ✅ **Production Ready** - Includes error handling, logging, and monitoring
 - ✅ **Lightweight & Fast** - Minimal dependencies, maximum performance
+
+📖 **See [RENDERING_IMPROVEMENTS.md](RENDERING_IMPROVEMENTS.md) for detailed information about HTML rendering enhancements**
 
 ---
 
@@ -450,15 +457,23 @@ Content-Type: application/json
 {
   "html": "<html><body><h1>Invoice</h1><p>Total: $500</p></body></html>",
   "css": "body { font-family: Arial; margin: 40px; }",
-  "filename": "invoice.pdf"
+  "filename": "invoice.pdf",
+  "base_url": "https://example.com/",
+  "page_size": "A4",
+  "margin": "2cm",
+  "optimize": true
 }
 ```
 
-| Parameter | Type   | Required | Description                                    |
-|-----------|--------|----------|------------------------------------------------|
-| `html`      | string | ✅ Yes      | HTML content to convert                        |
-| `css`       | string | ❌ No       | Additional CSS styles to apply                 |
-| `filename`  | string | ❌ No       | Output filename (default: document.pdf)        |
+| Parameter | Type   | Required | Default | Description                                    |
+|-----------|--------|----------|---------|------------------------------------------------|
+| `html`      | string | ✅ Yes   | -       | HTML content to convert                        |
+| `css`       | string | ❌ No    | -       | Additional CSS styles to apply                 |
+| `filename`  | string | ❌ No    | document.pdf | Output filename                         |
+| `base_url`  | string | ❌ No    | null    | Base URL for resolving relative URLs (images, stylesheets) |
+| `page_size` | string | ❌ No    | A4      | Page size (A4, A3, Letter, Legal, etc.)        |
+| `margin`    | string | ❌ No    | 2cm     | Page margins (CSS units: cm, in, mm)           |
+| `optimize`  | boolean| ❌ No    | true    | Enable PDF optimization (font/image compression) |
 
 #### Response
 
