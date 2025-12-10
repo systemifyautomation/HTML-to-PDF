@@ -380,17 +380,32 @@ You can modify the following settings in `app.py`:
 
 ## 🚢 Deployment
 
+### Production VPS Deployment (Recommended)
+
+For detailed instructions on deploying to a VPS (like Hostinger), see **[DEPLOYMENT.md](DEPLOYMENT.md)**. This includes:
+- Complete step-by-step VPS setup
+- Systemd service configuration
+- Nginx reverse proxy with SSL
+- Monitoring and maintenance
+
+**Quick VPS Deployment:**
+```bash
+# On your VPS
+cd /path/to/HTML-to-PDF
+./deployment/deploy.sh
+```
+
 ### Using Gunicorn (Production)
 
 For production deployments, use Gunicorn instead of the Flask development server:
 
 ```bash
-gunicorn -w 4 -b 0.0.0.0:5000 app:app
+gunicorn -w 4 -b 0.0.0.0:9000 app:app
 ```
 
 Options:
 - `-w 4`: Number of worker processes (adjust based on your CPU cores)
-- `-b 0.0.0.0:5000`: Bind to all interfaces on port 5000
+- `-b 0.0.0.0:9000`: Bind to all interfaces on port 9000
 - `--timeout 120`: Request timeout in seconds (useful for large PDFs)
 
 ### Docker Deployment
@@ -434,7 +449,8 @@ docker run -p 5000:5000 html-to-pdf
 
 The application can be deployed to various cloud platforms:
 
-- **Heroku**: Add a `Procfile` with `web: gunicorn app:app`
+- **VPS (Hostinger, DigitalOcean, Linode)**: See [DEPLOYMENT.md](DEPLOYMENT.md)
+- **Heroku**: Use the provided `Procfile`
 - **AWS Elastic Beanstalk**: Use the provided `requirements.txt`
 - **Google Cloud Run**: Use the Docker deployment method
 - **Azure App Service**: Deploy directly from GitHub
