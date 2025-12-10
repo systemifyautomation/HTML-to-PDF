@@ -6,10 +6,19 @@
 
 ## 📋 Quick Reference
 
-### Standard Update (No Breaking Changes)
+### With Docker (Recommended)
 ```bash
 ssh root@YOUR_VPS_IP
-cd /root/HTML-to-PDF
+cd ~/HTML-to-PDF
+git pull origin main
+cd ~
+docker compose restart htmltopdf
+```
+
+### With Systemd (Traditional)
+```bash
+ssh root@YOUR_VPS_IP
+cd ~/HTML-to-PDF
 git pull origin main
 systemctl restart htmltopdf
 ```
@@ -17,7 +26,7 @@ systemctl restart htmltopdf
 ### Full Redeploy (Dependencies Changed)
 ```bash
 ssh root@YOUR_VPS_IP
-cd /root/HTML-to-PDF
+cd ~/HTML-to-PDF
 git pull origin main
 source venv/bin/activate
 pip install -r requirements.txt
@@ -39,7 +48,7 @@ ssh root@YOUR_VPS_IP
 
 #### Step 2: Navigate to Project
 ```bash
-cd /root/HTML-to-PDF
+cd ~/HTML-to-PDF
 ```
 
 #### Step 3: Check Current Status
@@ -120,7 +129,7 @@ systemctl stop htmltopdf
 
 #### Step 3: Navigate and Pull Changes
 ```bash
-cd /root/HTML-to-PDF
+cd ~/HTML-to-PDF
 git pull origin main
 ```
 
@@ -131,7 +140,7 @@ source venv/bin/activate
 
 **Your prompt should show `(venv)` prefix:**
 ```
-(venv) root@server:/root/HTML-to-PDF#
+(venv) root@server:~/HTML-to-PDF#
 ```
 
 #### Step 5: Update Python Dependencies
@@ -191,12 +200,14 @@ curl https://yourdomain.com/health
 
 ---
 
-### Method 3: Docker Redeploy (If Using Docker)
+### Method 3: Docker Redeploy (Recommended)
+
+**Use this if you deployed with Docker Compose**
 
 #### Step 1: Connect and Navigate
 ```bash
 ssh root@YOUR_VPS_IP
-cd /root/HTML-to-PDF
+cd ~/HTML-to-PDF
 ```
 
 #### Step 2: Pull Latest Code
@@ -204,22 +215,15 @@ cd /root/HTML-to-PDF
 git pull origin main
 ```
 
-#### Step 3: Rebuild and Restart Container
+#### Step 3: Restart Container
 ```bash
-# Stop and remove old container
-docker compose down
-
-# Rebuild image
-docker compose build
-
-# Start new container
-docker compose up -d
-
-# Or in one command
-docker compose up -d --build
+cd ~
+docker compose restart htmltopdf
 ```
 
-#### Step 4: Check Logs
+**That's it!** The container will use the updated code from the mounted directory.
+
+#### Step 4: Check Logs (Optional)
 ```bash
 docker compose logs -f htmltopdf
 ```
@@ -231,12 +235,25 @@ curl https://yourdomain.com/health
 
 ---
 
+#### Alternative: Full Rebuild (Only if dependencies changed)
+
+If `requirements.txt` or `Dockerfile` changed:
+
+```bash
+cd ~/HTML-to-PDF
+git pull origin main
+cd ~
+docker compose up -d --build htmltopdf
+```
+
+---
+
 ## 🔧 Common Redeployment Scenarios
 
 ### Scenario 1: Fixed a Bug in app.py
 ```bash
 ssh root@YOUR_VPS_IP
-cd /root/HTML-to-PDF
+cd ~/HTML-to-PDF
 git pull origin main
 systemctl restart htmltopdf
 systemctl status htmltopdf
@@ -245,7 +262,7 @@ systemctl status htmltopdf
 ### Scenario 2: Added New API Endpoint
 ```bash
 ssh root@YOUR_VPS_IP
-cd /root/HTML-to-PDF
+cd ~/HTML-to-PDF
 git pull origin main
 systemctl restart htmltopdf
 
@@ -257,7 +274,7 @@ curl -X POST https://yourdomain.com/new-endpoint \
 ### Scenario 3: Updated Python Package Version
 ```bash
 ssh root@YOUR_VPS_IP
-cd /root/HTML-to-PDF
+cd ~/HTML-to-PDF
 git pull origin main
 source venv/bin/activate
 pip install -r requirements.txt
@@ -267,7 +284,7 @@ systemctl restart htmltopdf
 ### Scenario 4: Changed Gunicorn Workers or Timeout
 ```bash
 ssh root@YOUR_VPS_IP
-cd /root/HTML-to-PDF
+cd ~/HTML-to-PDF
 git pull origin main
 cp deployment/htmltopdf.service /etc/systemd/system/
 systemctl daemon-reload
@@ -277,7 +294,7 @@ systemctl restart htmltopdf
 ### Scenario 5: Updated Nginx Configuration
 ```bash
 ssh root@YOUR_VPS_IP
-cd /root/HTML-to-PDF
+cd ~/HTML-to-PDF
 git pull origin main
 cp deployment/nginx.conf /etc/nginx/sites-available/htmltopdf
 nginx -t
@@ -287,7 +304,7 @@ systemctl reload nginx
 ### Scenario 6: Added New API Keys
 ```bash
 ssh root@YOUR_VPS_IP
-cd /root/HTML-to-PDF
+cd ~/HTML-to-PDF
 
 # Generate new key
 python3 -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -303,12 +320,81 @@ systemctl restart htmltopdf
 
 ---
 
-## 🛠️ Automated Deployment Script
+## 🛠️ Automated Deployment Scripts
+
+### For Docker (Recommended)
 
 Create a deployment script for one-command updates:
 
 ```bash
-nano /root/HTML-to-PDF/update.sh
+nano ~/HTML-to-PDF/update-docker.sh
+```
+
+**Add this content:**
+```bash
+#!/bin/bash
+
+echo "🚀 Starting Docker deployment..."
+
+# Navigate to project
+cd ~/HTML-to-PDF
+
+# Pull latest changes
+echo "📥 Pulling latest code from GitHub..."
+git pull origin main
+
+# Navigate to docker compose location
+cd ~
+
+# Restart container
+echo "🔄 Restarting Docker container..."
+docker compose restart htmltopdf
+
+# Wait a moment for service to start
+sleep 3
+
+# Check status
+if docker compose ps htmltopdf | grep -q "Up"; then
+    echo "✅ Deployment successful! Container is running."
+    
+    # Test API
+    echo "🧪 Testing API..."
+    curl -s https://htmltopdf.systemifyautomation.com/health
+    echo ""
+    
+    # Show version
+    echo "📋 Current version:"
+    curl -s https://htmltopdf.systemifyautomation.com/version | grep -o '"version":"[^"]*"'
+    echo ""
+else
+    echo "❌ Deployment failed! Container is not running."
+    echo "📋 Checking logs..."
+    docker compose logs --tail=20 htmltopdf
+    exit 1
+fi
+
+echo "🎉 Deployment complete!"
+```
+
+**Make it executable:**
+```bash
+chmod +x ~/HTML-to-PDF/update-docker.sh
+```
+
+**Use it:**
+```bash
+ssh root@YOUR_VPS_IP
+~/HTML-to-PDF/update-docker.sh
+```
+
+---
+
+### For Systemd (Traditional)
+
+Create a deployment script for systemd-based deployments:
+
+```bash
+nano ~/HTML-to-PDF/update.sh
 ```
 
 **Add this content:**
@@ -318,7 +404,7 @@ nano /root/HTML-to-PDF/update.sh
 echo "🚀 Starting deployment..."
 
 # Navigate to project
-cd /root/HTML-to-PDF
+cd ~/HTML-to-PDF
 
 # Pull latest changes
 echo "📥 Pulling latest code from GitHub..."
@@ -358,18 +444,30 @@ echo "🎉 Deployment complete!"
 
 **Make it executable:**
 ```bash
-chmod +x /root/HTML-to-PDF/update.sh
+chmod +x ~/HTML-to-PDF/update.sh
 ```
 
 **Use it:**
 ```bash
 ssh root@YOUR_VPS_IP
-/root/HTML-to-PDF/update.sh
+~/HTML-to-PDF/update.sh
 ```
 
 ---
 
 ## 📊 Viewing Logs After Deployment
+
+### Docker Logs
+```bash
+# View last 50 lines
+docker compose logs --tail=50 htmltopdf
+
+# Follow logs in real-time
+docker compose logs -f htmltopdf
+
+# View logs with timestamps
+docker compose logs -f --timestamps htmltopdf
+```
 
 ### Service Logs (Systemd)
 ```bash
@@ -418,7 +516,7 @@ journalctl -u htmltopdf -n 50
 **Common fixes:**
 ```bash
 # Check for syntax errors
-cd /root/HTML-to-PDF
+cd ~/HTML-to-PDF
 source venv/bin/activate
 python3 -c "import app"
 
@@ -426,7 +524,7 @@ python3 -c "import app"
 ls -la .api-keys.json
 
 # Check file permissions
-chown -R root:root /root/HTML-to-PDF
+chown -R root:root ~/HTML-to-PDF
 ```
 
 ### Issue: Old Version Still Running
@@ -442,7 +540,7 @@ systemctl start htmltopdf
 
 **Check you're on the right branch:**
 ```bash
-cd /root/HTML-to-PDF
+cd ~/HTML-to-PDF
 git branch  # Should show * main
 git log --oneline -1  # Should show your latest commit
 ```
@@ -481,7 +579,7 @@ systemctl restart htmltopdf
 ### Quick Rollback (Last Commit)
 ```bash
 ssh root@YOUR_VPS_IP
-cd /root/HTML-to-PDF
+cd ~/HTML-to-PDF
 
 # Go back one commit
 git reset --hard HEAD~1
