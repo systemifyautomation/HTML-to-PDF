@@ -3,6 +3,8 @@ HTML to PDF Converter API
 A Flask-based REST API for converting HTML content to PDF documents.
 """
 
+__version__ = "1.0.0"
+
 from flask import Flask, request, send_file, jsonify
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
@@ -349,6 +351,7 @@ def health():
     """
     return jsonify({
         'status': 'healthy',
+        'version': __version__,
         'timestamp': datetime.now().isoformat()
     })
 
