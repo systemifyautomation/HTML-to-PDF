@@ -3,8 +3,8 @@ HTML to PDF Converter API
 A Flask-based REST API for converting HTML content to PDF documents.
 """
 
-__version__ = "1.0.0"
-__updated_at__ = "2025-12-10T00:00:00Z"
+__version__ = "1.2.0"
+__updated_at__ = "2025-12-10T15:00:00Z"
 
 from flask import Flask, request, send_file, jsonify
 from weasyprint import HTML, CSS
@@ -439,12 +439,6 @@ def get_default_pdf_css():
         mark { background-color: yellow; color: black; }
         small { font-size: 0.8em; }
         
-        /* Page breaks - only when needed */
-        @page {
-            size: A4;
-            margin: 2cm;
-        }
-        
         /* Prevent awkward breaks */
         h1, h2, h3, h4, h5, h6 {
             page-break-after: avoid;
@@ -485,9 +479,15 @@ def home():
                 'css': 'Optional CSS styles as string',
                 'filename': 'Optional output filename (default: document.pdf)',
                 'base_url': 'Optional base URL for resolving relative URLs (for images, stylesheets, etc.)',
-                'page_size': 'Optional page size: A4, A3, Letter, Legal, etc. (default: A4)',
-                'margin': 'Optional page margins in CSS units like 2cm, 1in (default: 2cm)',
-                'optimize': 'Optional PDF optimization flag (default: true)'
+                'page_size': 'Optional: "auto" for screenshot-like (default), or "A4", "Letter", "Legal", etc.',
+                'width': 'Optional: Custom width when page_size is "auto" (e.g., "1200px", "21cm")',
+                'margin': 'Optional: Page margins in CSS units like "2cm", "1in" (default: "0" for auto mode)',
+                'optimize': 'Optional: PDF optimization flag (default: true)'
+            },
+            'modes': {
+                'screenshot': 'Default: page_size="auto", margin="0" - PDF sized exactly to content',
+                'fixed_width': 'page_size="auto", width="1200px" - Fixed width, auto height',
+                'standard': 'page_size="A4", margin="2cm" - Traditional document format'
             },
             'improvements': [
                 'Automatic HTML structure validation and correction',
@@ -537,9 +537,15 @@ def convert_html_to_pdf():
     - css: CSS styles (optional)
     - filename: Output PDF filename (optional, default: document.pdf)
     - base_url: Base URL for resolving relative URLs (optional)
-    - page_size: Page size like 'A4', 'Letter', 'Legal' (optional, default: A4)
-    - margin: Page margins in CSS units like '2cm', '1in' (optional)
+    - page_size: 'auto' for screenshot-like (default), or 'A4', 'Letter', 'Legal', etc.
+    - width: Custom width when using auto sizing (optional, e.g., '1200px', '21cm')
+    - margin: Page margins in CSS units (optional, default: '0' for auto mode, '2cm' for fixed)
     - optimize: Enable PDF optimization (optional, default: true)
+    
+    Modes:
+    - Screenshot mode (default): page_size='auto', margin='0' - PDF sized to content
+    - Fixed width mode: page_size='auto', width='1200px' - Fixed width, auto height
+    - Standard document: page_size='A4', margin='2cm' - Traditional format
     
     Returns:
     - PDF file as attachment
@@ -560,14 +566,15 @@ def convert_html_to_pdf():
         css_content = data.get('css', '')
         filename = data.get('filename', 'document.pdf')
         base_url = data.get('base_url', None)
-        page_size = data.get('page_size', 'A4')
-        margin = data.get('margin', '2cm')
+        page_size = data.get('page_size', 'auto')  # 'auto' for screenshot-like, or 'A4', 'Letter', etc.
+        width = data.get('width', None)  # Custom width for auto-sizing
+        margin = data.get('margin', '0')  # Default to no margin for screenshot mode
         optimize = data.get('optimize', True)
         
         if not filename.endswith('.pdf'):
             filename += '.pdf'
         
-        logger.info(f"Converting HTML to PDF: {filename} (page_size={page_size}, optimize={optimize})")
+        logger.info(f"Converting HTML to PDF: {filename} (page_size={page_size}, width={width}, optimize={optimize})")
         
         # Sanitize and enhance HTML
         html_content = sanitize_and_enhance_html(html_content, base_url)
@@ -580,12 +587,34 @@ def convert_html_to_pdf():
         default_css = get_default_pdf_css()
         
         # Add custom page size and margins
-        page_css = f"""
-            @page {{
-                size: {page_size};
-                margin: {margin};
-            }}
-        """
+        if page_size.lower() == 'auto':
+            # Auto-size to content - screenshot mode
+            if width:
+                # Fixed width, auto height
+                page_css = f"""
+                    @page {{
+                        size: {width} auto;
+                        margin: {margin};
+                    }}
+                    body {{
+                        width: {width};
+                    }}
+                """
+            else:
+                # Completely auto-sized
+                page_css = f"""
+                    @page {{
+                        margin: {margin};
+                    }}
+                """
+        else:
+            # Fixed page size (A4, Letter, etc.)
+            page_css = f"""
+                @page {{
+                    size: {page_size};
+                    margin: {margin};
+                }}
+            """
         
         # Combine all CSS
         combined_css = default_css + page_css
