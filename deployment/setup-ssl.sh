@@ -47,7 +47,12 @@ if [ -f /etc/nginx/sites-enabled/default ]; then
 fi
 
 echo -e "${YELLOW}→ Testing Nginx configuration...${NC}"
-nginx -t
+if nginx -t; then
+    echo -e "${GREEN}✓ Nginx configuration is valid${NC}"
+else
+    echo -e "${RED}✗ Nginx configuration test failed${NC}"
+    exit 1
+fi
 
 echo -e "${YELLOW}→ Restarting Nginx...${NC}"
 systemctl restart nginx
@@ -57,11 +62,11 @@ echo -e "${GREEN}✓ Nginx is running${NC}"
 
 echo ""
 echo -e "${YELLOW}→ Obtaining SSL certificate from Let's Encrypt...${NC}"
-echo -e "${YELLOW}   You will be asked for your email address${NC}"
+echo -e "${YELLOW}   Certbot will automatically modify the nginx config to add SSL${NC}"
 echo ""
 
-# Get SSL certificate
-certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email || \
+# Get SSL certificate - Certbot will modify nginx config automatically
+certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --email admin@systemifyautomation.com || \
 certbot --nginx -d "$DOMAIN"
 
 echo ""
