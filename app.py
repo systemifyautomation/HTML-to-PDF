@@ -4,6 +4,7 @@ A Flask-based REST API for converting HTML content to PDF documents.
 """
 
 __version__ = "1.0.0"
+__updated_at__ = "2025-12-10T00:00:00Z"
 
 from flask import Flask, request, send_file, jsonify
 from weasyprint import HTML, CSS
@@ -35,6 +36,35 @@ rate_limit_storage = defaultdict(list)
 
 # API keys file path
 API_KEYS_FILE = os.path.join(os.path.dirname(__file__), '.api-keys.json')
+
+# Version file path
+VERSION_FILE = os.path.join(os.path.dirname(__file__), 'version.json')
+
+def load_version_info():
+    """
+    Load version information from version.json file.
+    If file doesn't exist, returns default version from __version__.
+    """
+    if not os.path.exists(VERSION_FILE):
+        return {
+            'version': __version__,
+            'name': 'HTML-to-PDF API',
+            'updated_at': __updated_at__,
+            'changelog': []
+        }
+    
+    try:
+        with open(VERSION_FILE, 'r') as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        logger.warning(f"Error loading version file: {str(e)}")
+        return {
+            'version': __version__,
+            'name': 'HTML-to-PDF API',
+            'updated_at': __updated_at__,
+            'changelog': []
+        }
 
 # Load API keys from JSON file
 def load_api_keys():
@@ -87,6 +117,9 @@ def load_api_keys():
             'super_user': None,
             'rate_limit': {'requests_per_minute': 60, 'requests_per_hour': 1000}
         }
+
+# Load version info at startup
+VERSION_INFO = load_version_info()
 
 # Load API keys at startup
 API_KEYS_CONFIG = load_api_keys()
@@ -313,12 +346,14 @@ def home():
     Home endpoint with API documentation.
     """
     return jsonify({
-        'service': 'HTML to PDF Converter API',
-        'version': '1.0.0',
+        'service': VERSION_INFO.get('name', 'HTML to PDF Converter API'),
+        'version': VERSION_INFO.get('version', __version__),
+        'updated_at': VERSION_INFO.get('updated_at', __updated_at__),
         'endpoints': {
             '/': 'GET - API documentation',
             '/convert': 'POST - Convert HTML to PDF',
-            '/health': 'GET - Health check'
+            '/health': 'GET - Health check',
+            '/version': 'GET - API version and update info'
         },
         'usage': {
             'endpoint': '/convert',
@@ -351,8 +386,23 @@ def health():
     """
     return jsonify({
         'status': 'healthy',
-        'version': __version__,
+        'version': VERSION_INFO.get('version', __version__),
         'timestamp': datetime.now().isoformat()
+    })
+
+@app.route('/version', methods=['GET'])
+def version():
+    """
+    Version endpoint - Returns current API version and last update timestamp.
+    Public endpoint - no authentication required.
+    """
+    return jsonify({
+        'version': VERSION_INFO.get('version', __version__),
+        'name': VERSION_INFO.get('name', 'HTML-to-PDF API'),
+        'updated_at': VERSION_INFO.get('updated_at', __updated_at__),
+        'changelog': VERSION_INFO.get('changelog', []),
+        'python_version': f"{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}",
+        'timestamp': datetime.utcnow().isoformat() + 'Z'
     })
 
 @app.route('/convert', methods=['POST'])

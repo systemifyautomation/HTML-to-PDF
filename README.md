@@ -409,6 +409,12 @@ X-API-Key: your-api-key-here
 <td>Health check</td>
 </tr>
 <tr>
+<td><code>/version</code></td>
+<td>GET</td>
+<td>❌</td>
+<td>API version and update info</td>
+</tr>
+<tr>
 <td><code>/convert</code></td>
 <td>POST</td>
 <td>✅</td>
