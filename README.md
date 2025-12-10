@@ -6,18 +6,43 @@
 ![Python](https://img.shields.io/badge/Python-3.8+-green?style=for-the-badge&logo=python)
 ![Flask](https://img.shields.io/badge/Flask-API-lightgrey?style=for-the-badge&logo=flask)
 ![WeasyPrint](https://img.shields.io/badge/WeasyPrint-PDF_Engine-orange?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker)
 
 **Transform HTML to Professional PDFs in Seconds** 🚀
 
-*A lightning-fast, production-ready REST API for converting HTML content to high-quality PDF documents. Perfect for invoices, reports, certificates, and any document automation needs.*
+*A lightning-fast, production-ready, self-hosted REST API for converting HTML content to high-quality PDF documents. Deploy your own instance in minutes!*
 
-[Features](#-features) • [Quick Start](#-quick-start) • [API Docs](#-api-documentation) • [Examples](#-usage-examples) • [Deployment](#-deployment)
+**Perfect for invoices, reports, certificates, and any document automation needs.**
+
+[Quick Start](#-quick-start) • [Deploy Your Own](#-deployment-guide) • [API Docs](#-api-documentation) • [Examples](#-usage-examples) • [Security](#-security--authentication)
+
+[![Deploy to VPS](https://img.shields.io/badge/Deploy-VPS-success?style=for-the-badge)](DEPLOYMENT.md)
+[![Use Docker](https://img.shields.io/badge/Deploy-Docker-blue?style=for-the-badge&logo=docker)](#docker-deployment)
+[![Fork & Deploy](https://img.shields.io/badge/Fork-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/systemifyautomation/HTML-to-PDF/fork)
 
 </div>
 
 ---
 
-## 🎯 Why Choose HTML-to-PDF API?
+## 🌟 Why Self-Host Your Own PDF API?
+
+<div align="center">
+
+**Take full control of your document generation infrastructure**
+
+</div>
+
+- 💰 **Zero Per-Request Costs** - No usage fees, process unlimited PDFs
+- 🔒 **Complete Data Privacy** - Your documents never leave your server
+- ⚡ **Maximum Performance** - No third-party API latency
+- 🎨 **Full Customization** - Modify the code to fit your exact needs
+- 📈 **Unlimited Scalability** - Scale horizontally as much as you need
+- 🛡️ **Enterprise Security** - Built-in authentication, rate limiting, and admin controls
+
+---
+
+## 🎯 Why Choose This API?
 
 <table>
 <tr>
@@ -187,7 +212,46 @@ pip install -r requirements.txt
 
 ## 🚀 Quick Start
 
-### 1. Start the Server
+### 1. Configure Security (Required)
+
+First, create your API keys file:
+
+```bash
+# Generate a secure super user key
+python3 -c "import secrets; print('Super User Key:', secrets.token_urlsafe(32))"
+
+# Generate API keys for your applications
+python3 -c "import secrets; print('API Key 1:', secrets.token_urlsafe(32))"
+
+# Copy the example file and add your keys
+cp .api-keys.example.json .api-keys.json
+```
+
+Edit `.api-keys.json` with your generated keys:
+```json
+{
+  "super_user": {
+    "key": "YOUR_GENERATED_SUPER_USER_KEY",
+    "name": "Super Admin",
+    "created": "2025-12-10",
+    "note": "Full admin access"
+  },
+  "api_keys": [
+    {
+      "key": "YOUR_GENERATED_API_KEY_1",
+      "name": "Production App",
+      "created": "2025-12-10",
+      "active": true
+    }
+  ],
+  "rate_limit": {
+    "requests_per_minute": 60,
+    "requests_per_hour": 1000
+  }
+}
+```
+
+### 2. Start the Server
 
 ```bash
 python app.py
@@ -196,29 +260,30 @@ python app.py
 <div align="center">
 
 ```
+INFO:app:API keys loaded successfully. 1 active keys, 1 inactive keys
 INFO:__main__:Starting HTML to PDF Converter API on port 5000
  * Running on http://0.0.0.0:5000
 ```
 
-✅ **Server is running!**
+✅ **Server is running with security enabled!**
 
 </div>
 
-### 2. Test with cURL
+### 3. Test with cURL
 
 ```bash
-# Health check
+# Health check (no auth required)
 curl http://localhost:5000/health
 
-# Create your first PDF
+# Create your first PDF (replace YOUR_API_KEY with actual key from .api-keys.json)
 curl -X POST http://localhost:5000/convert \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: YOUR_API_KEY" \
   -d '{"html": "<h1>Hello PDF!</h1><p>My first document</p>"}' \
   --output my-first.pdf
 ```
 
-### 3. View Result
+### 4. View Result
 
 ```bash
 # Open the PDF
@@ -227,25 +292,71 @@ xdg-open my-first.pdf  # Linux
 start my-first.pdf  # Windows
 ```
 
-You should see output similar to:
-```
-INFO:__main__:Starting HTML to PDF Converter API on port 5000
- * Running on http://0.0.0.0:5000
-```
+---
 
-### Test the API
+## 🔐 Security & Authentication
 
-Open a new terminal and run:
+### Overview
+
+This API includes enterprise-grade security features out of the box:
+
+- ✅ **Multi-Key Authentication** - Manage multiple API keys for different clients/apps
+- ✅ **Super User Access** - Dedicated admin key for managing all other keys
+- ✅ **Rate Limiting** - Configurable limits per key (default: 60/min, 1000/hour)
+- ✅ **Key Management API** - Add, list, update, and delete keys via HTTP endpoints
+- ✅ **Secure Storage** - Keys stored in `.api-keys.json` (excluded from Git)
+
+### API Key Types
+
+| Key Type | Header | Purpose | Endpoints |
+|----------|--------|---------|----------|
+| **API Key** | `X-API-Key` | Regular API access | `/convert` |
+| **Super User Key** | `X-Super-User-Key` | Admin key management | `/admin/keys/*` |
+
+### Managing API Keys
+
+#### Option 1: Using Admin API (Recommended)
 
 ```bash
-curl http://localhost:5000/health
+# List all keys
+curl -X GET https://your-domain.com/admin/keys \
+  -H "X-Super-User-Key: YOUR_SUPER_USER_KEY"
+
+# Create a new API key
+curl -X POST https://your-domain.com/admin/keys \
+  -H "Content-Type: application/json" \
+  -H "X-Super-User-Key: YOUR_SUPER_USER_KEY" \
+  -d '{"name": "Mobile App"}'
+
+# Deactivate a key
+curl -X PATCH https://your-domain.com/admin/keys/abc123 \
+  -H "Content-Type: application/json" \
+  -H "X-Super-User-Key: YOUR_SUPER_USER_KEY" \
+  -d '{"active": false}'
+
+# Delete a key permanently
+curl -X DELETE https://your-domain.com/admin/keys/abc123 \
+  -H "X-Super-User-Key: YOUR_SUPER_USER_KEY"
 ```
 
-You should receive a response indicating the service is healthy.
+#### Option 2: Using CLI Tool
 
-## 📚 API Documentation
+```bash
+# List all keys
+python generate_api_key.py list
 
-### Base URL
+# Add a new key
+python generate_api_key.py add "Client Name"
+
+# Deactivate a key by prefix
+python generate_api_key.py deactivate abc123
+```
+
+#### Option 3: Manual Editing
+
+Edit `.api-keys.json` directly and restart the server.
+
+📚 **Full documentation:** [API Key Management Guide](API_KEY_MANAGEMENT.md) • [Admin API Reference](ADMIN_API.md)
 
 ---
 
@@ -253,13 +364,17 @@ You should receive a response indicating the service is healthy.
 
 ### Base URL
 
+Replace with your deployed instance:
+
 ```
-http://your-domain.com:9001
+https://your-domain.com        # Production with HTTPS
+http://your-domain.com:9001    # Production without reverse proxy
+http://localhost:5000          # Local development
 ```
 
 ### 🔐 Authentication
 
-All endpoints (except `/` and `/health`) require an API key in the header:
+All endpoints (except `/` and `/health`) require authentication:
 
 ```http
 X-API-Key: your-api-key-here
@@ -531,153 +646,267 @@ You can configure the application using environment variables:
 | DEBUG    | False   | Enable debug mode (True/False)        |
 | API_KEY  | None    | API key for authentication (required for production) |
 
-### Setting Up API Authentication
+### Environment Variables (Optional)
 
-**1. Generate a secure API key:**
+For additional configuration, you can use environment variables:
 
-```bash
-# Using Python
-python -c "import secrets; print(secrets.token_urlsafe(32))"
-
-# Or use any secure random string generator
-```
-
-**2. Create a `.env` file:**
-
-Copy `.env.example` to `.env` and set your API key:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env`:
-```env
-PORT=9001
-DEBUG=False
-API_KEY=your-generated-secure-api-key-here
-```
-
-**3. The `.env` file is in `.gitignore`** - it will NOT be committed to GitHub, keeping your API key secure.
-
-### Setting Environment Variables
+| Variable | Default | Description                           |
+|----------|---------|---------------------------------------|
+| PORT     | 5000    | Port number for the API server        |
+| DEBUG    | False   | Enable debug mode (True/False)        |
 
 **Linux/macOS:**
 ```bash
 export PORT=8080
-export DEBUG=True
-export API_KEY=your-api-key-here
 python app.py
 ```
 
 **Windows (Command Prompt):**
 ```cmd
 set PORT=8080
-set DEBUG=True
-set API_KEY=your-api-key-here
 python app.py
 ```
 
-**Using .env file (Recommended):**
-
-Create a `.env` file in the project root:
-```env
-PORT=9001
-DEBUG=False
-API_KEY=your-secure-api-key-here
-```
-
-The application will automatically load these variables.
-
 ### Application Settings
 
-You can modify the following settings in `app.py`:
+Modify the following settings in `app.py` as needed:
 
 - **MAX_CONTENT_LENGTH**: Maximum request size (default: 16MB)
-  ```python
-  app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-  ```
+- **Rate Limits**: Edit `.api-keys.json` to adjust limits per key
+- **Logging Level**: Change in `app.py` - `logging.INFO`, `DEBUG`, `WARNING`, or `ERROR`
 
-- **Logging Level**: Adjust logging verbosity
-  ```python
-  logging.basicConfig(level=logging.INFO)  # or DEBUG, WARNING, ERROR
-  ```
+---
 
-## 🚢 Deployment
+## 🚢 Deployment Guide
 
-### Production VPS Deployment (Recommended)
+### 🎯 Choose Your Deployment Method
 
-For detailed instructions on deploying to a VPS (like Hostinger), see **[DEPLOYMENT.md](DEPLOYMENT.md)**. This includes:
-- Complete step-by-step VPS setup
-- Systemd service configuration
-- Nginx reverse proxy with SSL
-- Monitoring and maintenance
+<details>
+<summary><b>🐳 Option 1: Docker Deployment (Fastest & Easiest)</b></summary>
 
-**Quick VPS Deployment:**
+#### Prerequisites
+- Docker installed
+- Docker Compose (optional, for orchestration)
+
+#### Step 1: Clone and Configure
 ```bash
-# On your VPS
-cd /path/to/HTML-to-PDF
-./deployment/deploy.sh
+git clone https://github.com/systemifyautomation/HTML-to-PDF.git
+cd HTML-to-PDF
+
+# Setup API keys
+cp .api-keys.example.json .api-keys.json
+# Edit .api-keys.json with your secure keys
 ```
 
-### Using Gunicorn (Production)
-
-For production deployments, use Gunicorn instead of the Flask development server:
-
+#### Step 2: Build and Run
 ```bash
-gunicorn -w 4 -b 0.0.0.0:9000 app:app
-```
-
-Options:
-- `-w 4`: Number of worker processes (adjust based on your CPU cores)
-- `-b 0.0.0.0:9000`: Bind to all interfaces on port 9000
-- `--timeout 120`: Request timeout in seconds (useful for large PDFs)
-
-### Docker Deployment
-
-Create a `Dockerfile`:
-
-```dockerfile
-FROM python:3.10-slim
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    python3-dev \
-    python3-pip \
-    libcairo2 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 \
-    libffi-dev \
-    shared-mime-info \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-EXPOSE 5000
-
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "--timeout", "120", "app:app"]
-```
-
-Build and run:
-```bash
+# Build the image
 docker build -t html-to-pdf .
-docker run -p 5000:5000 html-to-pdf
+
+# Run the container
+docker run -d \
+  --name htmltopdf \
+  -p 9001:9001 \
+  -v $(pwd)/.api-keys.json:/app/.api-keys.json \
+  html-to-pdf
 ```
 
-### Cloud Deployment
+#### Step 3: Verify
+```bash
+curl http://localhost:9001/health
+```
 
-The application can be deployed to various cloud platforms:
+✅ **Done! Your API is running on port 9001**
 
-- **VPS (Hostinger, DigitalOcean, Linode)**: See [DEPLOYMENT.md](DEPLOYMENT.md)
-- **Heroku**: Use the provided `Procfile`
-- **AWS Elastic Beanstalk**: Use the provided `requirements.txt`
-- **Google Cloud Run**: Use the Docker deployment method
-- **Azure App Service**: Deploy directly from GitHub
+#### With Docker Compose + Traefik (HTTPS)
+
+Add to your `docker-compose.yml`:
+```yaml
+services:
+  htmltopdf:
+    build: .
+    container_name: htmltopdf
+    volumes:
+      - ./HTML-to-PDF/.api-keys.json:/app/.api-keys.json
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.htmltopdf.rule=Host(`pdf.yourdomain.com`)"
+      - "traefik.http.routers.htmltopdf.entrypoints=websecure"
+      - "traefik.http.routers.htmltopdf.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.htmltopdf.loadbalancer.server.port=9001"
+
+networks:
+  web:
+    external: true
+```
+
+</details>
+
+<details>
+<summary><b>🖥️ Option 2: VPS Deployment with Systemd (Full Control)</b></summary>
+
+Perfect for VPS providers like Hostinger, DigitalOcean, Linode, or any Linux server.
+
+#### Step 1: Server Setup
+```bash
+# SSH into your VPS
+ssh root@your-server-ip
+
+# Install dependencies
+apt-get update
+apt-get install -y python3 python3-pip python3-venv \
+  libcairo2 libpango-1.0-0 libgdk-pixbuf-2.0-0 libffi-dev \
+  nginx certbot python3-certbot-nginx
+
+# Clone repository
+cd /root
+git clone https://github.com/systemifyautomation/HTML-to-PDF.git
+cd HTML-to-PDF
+```
+
+#### Step 2: Setup Application
+```bash
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install Python packages
+pip install -r requirements.txt
+
+# Configure API keys
+cp .api-keys.example.json .api-keys.json
+nano .api-keys.json  # Add your secure keys
+```
+
+#### Step 3: Configure Systemd Service
+```bash
+# Copy service file
+cp deployment/htmltopdf.service /etc/systemd/system/
+
+# Edit paths if needed
+nano /etc/systemd/system/htmltopdf.service
+
+# Enable and start service
+systemctl daemon-reload
+systemctl enable htmltopdf
+systemctl start htmltopdf
+
+# Check status
+systemctl status htmltopdf
+```
+
+#### Step 4: Configure Nginx + SSL
+```bash
+# Copy nginx configuration
+cp deployment/nginx.conf /etc/nginx/sites-available/htmltopdf
+ln -s /etc/nginx/sites-available/htmltopdf /etc/nginx/sites-enabled/
+
+# Edit with your domain
+nano /etc/nginx/sites-available/htmltopdf
+
+# Test and restart nginx
+nginx -t
+systemctl restart nginx
+
+# Setup SSL with Let's Encrypt
+certbot --nginx -d your-domain.com
+```
+
+✅ **Done! Your API is running with HTTPS at https://your-domain.com**
+
+📚 **Detailed guide:** [DEPLOYMENT.md](DEPLOYMENT.md)
+
+</details>
+
+<details>
+<summary><b>☁️ Option 3: Cloud Platform Deployment</b></summary>
+
+### Heroku
+```bash
+# Prerequisites: Heroku CLI installed
+git clone https://github.com/systemifyautomation/HTML-to-PDF.git
+cd HTML-to-PDF
+
+# Create Heroku app
+heroku create your-pdf-api
+
+# Set config (add your API keys via Heroku dashboard or CLI)
+heroku config:set SUPER_USER_KEY=your-super-user-key
+
+# Deploy
+git push heroku main
+
+# Open app
+heroku open
+```
+
+### Google Cloud Run
+```bash
+# Build and push to Google Container Registry
+gcloud builds submit --tag gcr.io/YOUR_PROJECT/html-to-pdf
+
+# Deploy to Cloud Run
+gcloud run deploy html-to-pdf \
+  --image gcr.io/YOUR_PROJECT/html-to-pdf \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated
+```
+
+### AWS Elastic Beanstalk
+```bash
+# Prerequisites: EB CLI installed
+eb init -p python-3.10 html-to-pdf
+eb create html-to-pdf-env
+eb deploy
+```
+
+### DigitalOcean App Platform
+1. Fork this repository
+2. Connect your GitHub account to DigitalOcean
+3. Create new app from your forked repo
+4. Configure environment variables
+5. Deploy!
+
+</details>
+
+### 📋 Post-Deployment Checklist
+
+- [ ] API keys configured in `.api-keys.json`
+- [ ] Health check endpoint responds: `curl https://your-domain.com/health`
+- [ ] HTTPS certificate installed and working
+- [ ] Test PDF generation with sample HTML
+- [ ] Firewall configured (allow ports 80, 443)
+- [ ] Monitoring setup (optional: UptimeRobot, Pingdom)
+- [ ] Backup `.api-keys.json` securely
+- [ ] Document your API endpoint for team members
+
+### 🚀 Advanced Configuration
+
+#### Gunicorn Workers
+Adjust worker count based on CPU cores: `workers = (2 × CPU_cores) + 1`
+
+```bash
+gunicorn -w 4 -b 0.0.0.0:9001 --timeout 120 app:app
+```
+
+#### Rate Limiting
+Edit `.api-keys.json` to adjust limits:
+```json
+"rate_limit": {
+  "requests_per_minute": 100,
+  "requests_per_hour": 5000
+}
+```
+
+#### Custom Port
+```bash
+# Set port via environment variable
+export PORT=8080
+python app.py
+```
 
 ## 🔍 Troubleshooting
 
@@ -809,9 +1038,111 @@ This HTML-to-PDF converter is perfect for:
 - **Labels**: Create shipping labels or product tags
 - **Documentation**: Convert HTML documentation to PDF
 
+## 🍴 Fork & Customize
+
+**This project is designed to be forked and customized for your needs!**
+
+### Quick Fork Guide
+
+1. **Fork the repository** on GitHub
+2. **Clone your fork:**
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/HTML-to-PDF.git
+   cd HTML-to-PDF
+   ```
+3. **Customize for your needs:**
+   - Modify `app.py` to add custom endpoints
+   - Adjust rate limits in `.api-keys.json`
+   - Add custom PDF templates in `examples/`
+   - Update branding in README
+
+4. **Deploy your version** using any method above
+5. **Keep it updated** (optional):
+   ```bash
+   git remote add upstream https://github.com/systemifyautomation/HTML-to-PDF.git
+   git fetch upstream
+   git merge upstream/main
+   ```
+
+### Common Customizations
+
+<details>
+<summary><b>Add Custom Headers/Footers</b></summary>
+
+```python
+# In app.py, modify the convert endpoint:
+from weasyprint import HTML, CSS
+
+@app.route('/convert', methods=['POST'])
+@require_api_key
+def convert_html_to_pdf():
+    # ... existing code ...
+    
+    # Add custom CSS for headers/footers
+    custom_css = CSS(string='''
+        @page {
+            @top-center {
+                content: "Company Name";
+            }
+            @bottom-right {
+                content: "Page " counter(page) " of " counter(pages);
+            }
+        }
+    ''')
+    
+    pdf = HTML(string=html_content).write_pdf(stylesheets=[custom_css])
+```
+</details>
+
+<details>
+<summary><b>Add Webhook Notifications</b></summary>
+
+```python
+import requests
+
+@app.route('/convert', methods=['POST'])
+@require_api_key
+def convert_html_to_pdf():
+    # ... generate PDF ...
+    
+    # Send webhook notification
+    webhook_url = request.json.get('webhook_url')
+    if webhook_url:
+        requests.post(webhook_url, json={
+            'status': 'completed',
+            'filename': filename,
+            'size': len(pdf_data)
+        })
+```
+</details>
+
+<details>
+<summary><b>Add S3/Cloud Storage</b></summary>
+
+```python
+import boto3
+
+s3 = boto3.client('s3')
+
+@app.route('/convert', methods=['POST'])
+@require_api_key
+def convert_html_to_pdf():
+    # ... generate PDF ...
+    
+    # Upload to S3
+    if request.json.get('save_to_s3'):
+        s3.put_object(
+            Bucket='your-bucket',
+            Key=f'pdfs/{filename}',
+            Body=pdf_data,
+            ContentType='application/pdf'
+        )
+```
+</details>
+
 ## 🤝 Contributing
 
-Contributions are welcome! Here's how you can help:
+Contributions to the main project are welcome! Here's how:
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature-name`
@@ -833,15 +1164,79 @@ This project is open source and available under the [MIT License](LICENSE).
 - [Flask](https://flask.palletsprojects.com/) for the web framework
 - All contributors who help improve this project
 
-## 📞 Support
+## ❓ FAQ
 
-For questions or support:
-- Open an [issue](https://github.com/systemifyautomation/HTML-to-PDF/issues)
-- Check existing issues for solutions
-- Review the troubleshooting section
+<details>
+<summary><b>Can I use this commercially?</b></summary>
+Yes! This project is MIT licensed. Use it for any purpose, commercial or personal.
+</details>
+
+<details>
+<summary><b>How much does it cost to run?</b></summary>
+Only your hosting costs. A basic VPS ($5-10/month) can handle thousands of PDFs. No per-request fees.
+</details>
+
+<details>
+<summary><b>Can I generate PDFs from URLs?</b></summary>
+Currently, you need to send HTML content. However, you can easily add URL support by modifying the code (fetch HTML from URL, then convert).
+</details>
+
+<details>
+<summary><b>What's the maximum PDF size?</b></summary>
+Request size is limited to 16MB by default. You can adjust this in `app.py` with `app.config['MAX_CONTENT_LENGTH']`.
+</details>
+
+<details>
+<summary><b>Does it support multiple languages?</b></summary>
+Yes! WeasyPrint supports Unicode and international fonts. Just include the appropriate fonts in your CSS.
+</details>
+
+<details>
+<summary><b>Can I add watermarks?</b></summary>
+Yes! Use CSS to add watermarks as background images or pseudo-elements.
+</details>
+
+<details>
+<summary><b>How do I backup my API keys?</b></summary>
+Securely backup `.api-keys.json` to a password manager or encrypted storage. This file is critical for authentication.
+</details>
 
 ---
 
-**Made with ❤️ for developers who need to generate PDFs**
+## 📚 Resources
+
+- 📖 [WeasyPrint Documentation](https://doc.courtbouillon.org/weasyprint/stable/)
+- 🎨 [CSS Paged Media Guide](https://www.w3.org/TR/css-page-3/)
+- 🐳 [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
+- 🔐 [API Security Checklist](https://github.com/shieldfy/API-Security-Checklist)
+- 📦 [Example PDF Templates](./examples/)
+
+---
+
+## 📞 Support
+
+**Need help?**
+
+- 📋 [Open an issue](https://github.com/systemifyautomation/HTML-to-PDF/issues)
+- 💬 [Check existing issues](https://github.com/systemifyautomation/HTML-to-PDF/issues?q=is%3Aissue)
+- 📖 [Review documentation](DEPLOYMENT.md)
+- 🔧 [Troubleshooting guide](#-troubleshooting)
+
+**Deployment Help:**
+- [VPS Deployment Guide](DEPLOYMENT.md)
+- [API Key Management](API_KEY_MANAGEMENT.md)
+- [Admin API Reference](ADMIN_API.md)
+
+---
+
+<div align="center">
+
+**Made with ❤️ for developers who need complete control over their PDF generation**
+
+⭐ **Star this repo if you find it useful!** ⭐
+
+[![Star History](https://img.shields.io/github/stars/systemifyautomation/HTML-to-PDF?style=social)](https://github.com/systemifyautomation/HTML-to-PDF/stargazers)
 
 Happy PDF generating! 🎉
+
+</div>
