@@ -4,11 +4,11 @@ After=network.target
 
 [Service]
 Type=exec
-User=your-username
-Group=your-username
-WorkingDirectory=/home/your-username/apps/HTML-to-PDF
-Environment="PATH=/home/your-username/apps/HTML-to-PDF/venv/bin"
-ExecStart=/home/your-username/apps/HTML-to-PDF/venv/bin/gunicorn -w 4 -b 0.0.0.0:9000 --timeout 120 app:app
+User=root
+Group=root
+WorkingDirectory=/home/root/HTML-to-PDF
+Environment="PATH=/home/root/HTML-to-PDF/venv/bin"
+ExecStart=/home/root/HTML-to-PDF/venv/bin/gunicorn -w 4 -b 0.0.0.0:9000 --timeout 120 app:app
 Restart=always
 RestartSec=10
 
