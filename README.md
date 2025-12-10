@@ -8,12 +8,13 @@
 ![WeasyPrint](https://img.shields.io/badge/WeasyPrint-PDF_Engine-orange?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker)
+![Version](https://img.shields.io/badge/Version-1.2.0-brightgreen?style=for-the-badge)
 
 **Transform HTML to Professional PDFs in Seconds** 🚀
 
-*A lightning-fast, production-ready, self-hosted REST API for converting HTML content to high-quality PDF documents. Deploy your own instance in minutes!*
+*A lightning-fast, production-ready, self-hosted REST API for converting HTML content to high-quality PDF documents. **NEW: Screenshot mode** - Generate PDFs that look exactly like your HTML rendered in a browser!*
 
-**Perfect for invoices, reports, certificates, and any document automation needs.**
+**Perfect for invoices, reports, certificates, screenshots, and any document automation needs.**
 
 [Quick Start](#-quick-start) • [Deploy Your Own](#-deployment-guide) • [API Docs](#-api-documentation) • [Examples](#-usage-examples) • [Security](#-security--authentication)
 
@@ -39,6 +40,7 @@
 - 🎨 **Full Customization** - Modify the code to fit your exact needs
 - 📈 **Unlimited Scalability** - Scale horizontally as much as you need
 - 🛡️ **Enterprise Security** - Built-in authentication, rate limiting, and admin controls
+- 📸 **Screenshot Mode** - Auto-sized PDFs matching browser display exactly
 
 ---
 
@@ -106,6 +108,8 @@ graph LR
 
 - ✅ **REST API** - Simple JSON endpoints for PDF generation
 - ✅ **High-Quality Output** - Professional PDF rendering using WeasyPrint
+- ✅ **Screenshot Mode** - Auto-sized PDFs matching exact browser display (NEW in v1.2.0)
+- ✅ **Flexible Sizing** - Auto, fixed-width, mobile, desktop, or standard page formats
 - ✅ **Smart HTML Processing** - Automatic structure validation and correction
 - ✅ **External Resources** - Load images and stylesheets via base URL
 - ✅ **Custom CSS Styling** - Full control over document appearance
@@ -116,6 +120,25 @@ graph LR
 - ✅ **Rate Limiting** - Protect your API with configurable limits (60/min, 1000/hr)
 - ✅ **Admin API** - Manage API keys via HTTP endpoints
 - ✅ **Production Ready** - Includes error handling, logging, and monitoring
+
+---
+
+## 📸 PDF Generation Modes
+
+<div align="center">
+
+**Choose the perfect mode for your use case:**
+
+</div>
+
+| Mode | `page_size` | `width` | `margin` | Best For | Example Use Cases |
+|------|-------------|---------|----------|----------|-------------------|
+| 🖼️ **Screenshot** | `auto` | - | `0` | Browser-like output | Dashboards, web previews, visual content |
+| 🖥️ **Fixed Width** | `auto` | `1200px` | `0` | Responsive layouts | Desktop websites, landing pages |
+| 📱 **Mobile** | `auto` | `375px` | `0` | Phone views | Mobile app screens, responsive testing |
+| 📄 **Document** | `A4` | - | `2cm` | Printable docs | Invoices, reports, letters, certificates |
+
+**Default:** Screenshot mode (`page_size="auto"`, `margin="0"`)
 - ✅ **Lightweight & Fast** - Minimal dependencies, maximum performance
 
 📖 **See [RENDERING_IMPROVEMENTS.md](RENDERING_IMPROVEMENTS.md) for detailed information about HTML rendering enhancements**
@@ -465,8 +488,9 @@ Content-Type: application/json
   "css": "body { font-family: Arial; margin: 40px; }",
   "filename": "invoice.pdf",
   "base_url": "https://example.com/",
-  "page_size": "A4",
-  "margin": "2cm",
+  "page_size": "auto",
+  "width": "1200px",
+  "margin": "0",
   "optimize": true
 }
 ```
@@ -477,8 +501,9 @@ Content-Type: application/json
 | `css`       | string | ❌ No    | -       | Additional CSS styles to apply                 |
 | `filename`  | string | ❌ No    | document.pdf | Output filename                         |
 | `base_url`  | string | ❌ No    | null    | Base URL for resolving relative URLs (images, stylesheets) |
-| `page_size` | string | ❌ No    | A4      | Page size (A4, A3, Letter, Legal, etc.)        |
-| `margin`    | string | ❌ No    | 2cm     | Page margins (CSS units: cm, in, mm)           |
+| `page_size` | string | ❌ No    | auto    | Page size: `auto` (content-sized), `A4`, `A3`, `Letter`, `Legal`, etc. |
+| `width`     | string | ❌ No    | null    | Fixed width for auto page size (e.g., `1200px`, `375px`) |
+| `margin`    | string | ❌ No    | 0       | Page margins: `0` for screenshot mode, `2cm` for documents |
 | `optimize`  | boolean| ❌ No    | true    | Enable PDF optimization (font/image compression) |
 
 #### Response
@@ -503,7 +528,156 @@ Content-Disposition: attachment; filename="invoice.pdf"
 
 ---
 
+### 📋 Version Endpoint: `/version`
+
+Get current API version, update time, and changelog.
+
+#### Request
+
+```http
+GET /version
+```
+
+No authentication required.
+
+#### Response
+
+```json
+{
+  "version": "1.2.0",
+  "name": "HTML-to-PDF API",
+  "updated_at": "2025-12-10T15:00:00Z",
+  "python_version": "3.10.12",
+  "timestamp": "2025-12-10T15:30:45.123456",
+  "changelog": [
+    "Added screenshot mode - PDFs auto-sized to content (no fixed page format)",
+    "Added fixed-width mode with auto height",
+    "Support for custom width sizing (desktop/mobile views)",
+    "Default mode changed to 'auto' for screenshot-like output",
+    "Zero margins by default for pixel-perfect rendering",
+    "Enhanced PDF rendering to match browser display exactly",
+    "Added browser-default CSS for all HTML elements"
+  ]
+}
+```
+
+**Example:**
+```bash
+# Check current version
+curl http://localhost:5000/version
+
+# Check deployed version
+curl https://htmltopdf.systemifyautomation.com/version
+```
+
+---
+
 ## 💡 Usage Examples
+
+### 📸 NEW: Screenshot Mode Examples
+
+**Generate PDFs that look exactly like browser screenshots!**
+
+#### Mode 1: Auto-Sized Screenshot (Default)
+Perfect for dashboards, reports, and visual content that should match browser display exactly.
+
+```bash
+curl -X POST http://localhost:5000/convert \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key-here" \
+  -d '{
+    "html": "<div style=\"width:800px;height:600px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:40px\"><h1 style=\"color:white\">Dashboard</h1></div>",
+    "page_size": "auto",
+    "margin": "0"
+  }' \
+  --output screenshot.pdf
+```
+
+**Python Example:**
+```python
+import requests
+
+response = requests.post(
+    'http://localhost:5000/convert',
+    headers={'X-API-Key': 'your-api-key-here'},
+    json={
+        'html': '''
+            <div style="width:800px;height:600px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)">
+                <h1 style="color:white;padding:40px">Dashboard Screenshot</h1>
+            </div>
+        ''',
+        'page_size': 'auto',  # Auto-size to content
+        'margin': '0',        # Zero margins for pixel-perfect output
+        'filename': 'screenshot.pdf'
+    }
+)
+
+with open('screenshot.pdf', 'wb') as f:
+    f.write(response.content)
+```
+
+#### Mode 2: Fixed-Width Responsive (Desktop View)
+Great for web page screenshots with responsive height.
+
+```python
+import requests
+
+# Generate desktop view (1200px wide, auto height)
+response = requests.post(
+    'http://localhost:5000/convert',
+    headers={'X-API-Key': 'your-api-key-here'},
+    json={
+        'html': '<html>Your web page HTML...</html>',
+        'page_size': 'auto',   # Auto height
+        'width': '1200px',     # Fixed desktop width
+        'margin': '0',
+        'filename': 'desktop-view.pdf'
+    }
+)
+```
+
+#### Mode 3: Mobile Screenshot (Phone View)
+Perfect for mobile app previews and responsive design testing.
+
+```python
+import requests
+
+# Generate mobile view (375px wide iPhone size)
+response = requests.post(
+    'http://localhost:5000/convert',
+    headers={'X-API-Key': 'your-api-key-here'},
+    json={
+        'html': '<html>Your mobile HTML...</html>',
+        'page_size': 'auto',   # Auto height
+        'width': '375px',      # iPhone width
+        'margin': '0',
+        'filename': 'mobile-view.pdf'
+    }
+)
+```
+
+#### Mode 4: Standard Document (Traditional PDF)
+For invoices, reports, and printable documents with standard page sizes.
+
+```python
+import requests
+
+# Generate A4 document
+response = requests.post(
+    'http://localhost:5000/convert',
+    headers={'X-API-Key': 'your-api-key-here'},
+    json={
+        'html': '<html>Your document HTML...</html>',
+        'page_size': 'A4',     # Standard page size
+        'margin': '2cm',       # Printable margins
+        'filename': 'document.pdf'
+    }
+)
+```
+
+**📁 Complete Examples:** See `examples/screenshot_mode_examples.py` for detailed working code!
+
+---
 
 ### 📝 Example 1: Simple Invoice
 
@@ -1178,6 +1352,45 @@ Please ensure your code follows the existing style and includes appropriate test
 ## 📄 License
 
 This project is open source and available under the [MIT License](LICENSE).
+
+---
+
+## 📋 Version History
+
+### 🎉 v1.2.0 - Screenshot Mode Release (December 10, 2025)
+**NEW: Auto-sizing PDFs that match browser display exactly**
+
+- ✨ **Screenshot Mode** - Generate PDFs auto-sized to content (no fixed page format)
+- 🖥️ **Fixed-Width Mode** - Set custom width with auto height for responsive layouts
+- 📱 **Mobile Support** - Create phone-sized PDFs (e.g., 375px for iPhone)
+- 🎨 **Default Changed** - Now uses `page_size='auto'` and `margin='0'` by default
+- 📏 **Width Parameter** - New parameter for desktop/mobile view control
+- 🔄 **Dynamic Margins** - Zero margins for screenshot mode, 2cm for documents
+- 📁 **Examples Added** - Complete working examples in `examples/screenshot_mode_examples.py`
+
+**API Changes:**
+- Default `page_size`: `"A4"` → `"auto"`
+- Default `margin`: `"2cm"` → `"0"`
+- New parameter: `width` (e.g., `"1200px"`, `"375px"`)
+
+### v1.1.0 - Browser-Accurate Rendering (December 10, 2025)
+- 🎨 Enhanced PDF rendering to match browser display exactly
+- 📝 Added browser-default CSS for all HTML elements (headings, lists, tables)
+- 🔍 Improved HTML sanitization with viewport meta tag
+- ✍️ Better typography and font rendering
+- 📊 Added `/version` endpoint for version tracking
+- 🔐 Multi-key authentication system
+
+### v1.0.0 - Initial Release
+- ⚡ REST API for HTML to PDF conversion
+- 🔒 Multi-key authentication with super-user admin access
+- ⏱️ Rate limiting (60/min, 1000/hour per key)
+- 📦 Docker support with Traefik integration
+- 🎨 Full CSS styling support
+- 📏 Custom page sizes (A4, Letter, Legal, etc.)
+- 🔧 Admin API for key management
+
+---
 
 ## 🙏 Acknowledgments
 
