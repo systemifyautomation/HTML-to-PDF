@@ -241,7 +241,8 @@ def require_super_user(f):
 
 def sanitize_and_enhance_html(html_content, base_url=None):
     """
-    Sanitize and enhance HTML for better PDF rendering.
+    Sanitize and enhance HTML for browser-like PDF rendering.
+    Preserves all browser rendering behaviors.
     
     Args:
         html_content: Raw HTML string
@@ -278,6 +279,15 @@ def sanitize_and_enhance_html(html_content, base_url=None):
             flags=re.IGNORECASE
         )
     
+    # Add viewport meta tag for responsive rendering
+    if not re.search(r'<meta[^>]*viewport', html_content, re.IGNORECASE):
+        html_content = re.sub(
+            r'(<meta charset="UTF-8">)',
+            r'\1\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
+            html_content,
+            flags=re.IGNORECASE
+        )
+    
     # Add base tag if base_url is provided
     if base_url and not re.search(r'<base[^>]*href', html_content, re.IGNORECASE):
         html_content = re.sub(
@@ -291,19 +301,151 @@ def sanitize_and_enhance_html(html_content, base_url=None):
 
 def get_default_pdf_css():
     """
-    Get default CSS optimizations for PDF rendering.
+    Get default CSS optimizations for PDF rendering that mimics browser display.
     
     Returns:
-        CSS string with PDF-specific styles
+        CSS string with browser-like styles
     """
     return """
-        /* PDF-specific optimizations */
+        /* Reset for consistent rendering */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        /* Browser-like defaults */
+        html {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            color: #000000;
+            background: #ffffff;
+        }
+        
+        body {
+            margin: 8px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+        
+        /* Headings - match browser defaults */
+        h1 { font-size: 2em; margin: 0.67em 0; font-weight: bold; }
+        h2 { font-size: 1.5em; margin: 0.83em 0; font-weight: bold; }
+        h3 { font-size: 1.17em; margin: 1em 0; font-weight: bold; }
+        h4 { font-size: 1em; margin: 1.33em 0; font-weight: bold; }
+        h5 { font-size: 0.83em; margin: 1.67em 0; font-weight: bold; }
+        h6 { font-size: 0.67em; margin: 2.33em 0; font-weight: bold; }
+        
+        /* Paragraphs */
+        p { margin: 1em 0; }
+        
+        /* Lists - browser defaults */
+        ul, ol { 
+            margin: 1em 0; 
+            padding-left: 40px; 
+        }
+        
+        ul { list-style-type: disc; }
+        ol { list-style-type: decimal; }
+        
+        li { margin: 0.5em 0; }
+        
+        /* Links */
+        a {
+            color: #0000EE;
+            text-decoration: underline;
+        }
+        
+        a:visited {
+            color: #551A8B;
+        }
+        
+        /* Images */
+        img {
+            max-width: 100%;
+            height: auto;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        
+        /* Tables - browser defaults */
+        table {
+            border-collapse: separate;
+            border-spacing: 2px;
+            border-color: gray;
+        }
+        
+        th, td {
+            padding: 1px;
+            text-align: inherit;
+        }
+        
+        th {
+            font-weight: bold;
+        }
+        
+        /* Forms */
+        input, button, select, textarea {
+            font-family: inherit;
+            font-size: 100%;
+            margin: 0;
+        }
+        
+        button, input {
+            overflow: visible;
+        }
+        
+        /* Code blocks */
+        code, pre {
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.875em;
+        }
+        
+        pre {
+            margin: 1em 0;
+            padding: 10px;
+            background: #f5f5f5;
+            border: 1px solid #ccc;
+            overflow: auto;
+        }
+        
+        code {
+            background: #f5f5f5;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        
+        /* Blockquotes */
+        blockquote {
+            margin: 1em 40px;
+            padding-left: 10px;
+            border-left: 4px solid #ccc;
+        }
+        
+        /* HR */
+        hr {
+            border: none;
+            border-top: 1px solid #ccc;
+            margin: 1em 0;
+        }
+        
+        /* Text formatting */
+        strong, b { font-weight: bold; }
+        em, i { font-style: italic; }
+        u { text-decoration: underline; }
+        s, del { text-decoration: line-through; }
+        mark { background-color: yellow; color: black; }
+        small { font-size: 0.8em; }
+        
+        /* Page breaks - only when needed */
         @page {
             size: A4;
             margin: 2cm;
         }
         
-        /* Prevent awkward page breaks */
+        /* Prevent awkward breaks */
         h1, h2, h3, h4, h5, h6 {
             page-break-after: avoid;
             page-break-inside: avoid;
@@ -313,30 +455,9 @@ def get_default_pdf_css():
             page-break-inside: avoid;
         }
         
-        /* Better text rendering */
-        body {
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            text-rendering: optimizeLegibility;
-        }
-        
-        /* Ensure images fit on page */
-        img {
-            max-width: 100%;
-            height: auto;
-        }
-        
-        /* Better table rendering */
-        table {
-            border-collapse: collapse;
-            width: 100%;
-        }
-        
-        /* Handle links for print */
-        @media print {
-            a[href]:after {
-                content: none !important;
-            }
+        /* Divs and sections */
+        div, section, article, aside, nav, header, footer {
+            display: block;
         }
     """
 
