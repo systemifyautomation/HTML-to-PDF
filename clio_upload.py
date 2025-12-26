@@ -142,26 +142,22 @@ class ClioFileUploader:
         print(f"\nUploading file: {file_name}")
         print(f"Size: {file_size / 1024:.2f} KB")
         
-        # Prepare document data
-        document_data = {
-            "name": file_name,
-        }
-        
-        if matter_id:
-            document_data["matter"] = {"id": matter_id}
-        
         try:
-            # Read file content
+            # Upload to Clio using the documents endpoint
+            # Based on clio-manage-api-client documentation
             with open(file_path, 'rb') as f:
-                file_content = f.read()
-            
-            # Upload to Clio
-            # Note: The exact API method may vary based on Clio's API version
-            # This is a basic implementation that may need adjustment
-            response = self.client.post.documents(
-                data=document_data,
-                files={'content': (file_name, file_content)}
-            )
+                # The API expects the file as a parameter along with metadata
+                upload_params = {
+                    'name': file_name,
+                    'file': f
+                }
+                
+                # Add matter_id if provided
+                if matter_id:
+                    upload_params['matter_id'] = matter_id
+                
+                # Upload document using POST method
+                response = self.client.post.documents(**upload_params)
             
             return response
             
