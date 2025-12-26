@@ -50,3 +50,7 @@ output/
 # API Keys (NEVER commit this!)
 .api-keys.json
 api-keys.json
+
+# Clio Configuration (NEVER commit this!)
+.clio-config.json
+clio-config.json

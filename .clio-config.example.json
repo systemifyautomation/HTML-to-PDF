@@ -1,0 +1,5 @@
+{
+  "access_token": "YOUR_CLIO_ACCESS_TOKEN_HERE",
+  "api_region": "app.clio.com",
+  "note": "Get your access token from https://app.clio.com/settings/developer_applications"
+}
