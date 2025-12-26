@@ -145,11 +145,12 @@ class ClioFileUploader:
         try:
             # Upload to Clio using the documents endpoint
             # Based on clio-manage-api-client documentation
+            # The file must remain open during the API call, so we use it within the with context
             with open(file_path, 'rb') as f:
                 # The API expects the file as a parameter along with metadata
                 upload_params = {
                     'name': file_name,
-                    'file': f
+                    'file': f  # File object passed directly; SDK reads it during the API call
                 }
                 
                 # Add matter_id if provided
@@ -157,8 +158,10 @@ class ClioFileUploader:
                     upload_params['matter_id'] = matter_id
                 
                 # Upload document using POST method
+                # The API call happens here while the file is still open
                 response = self.client.post.documents(**upload_params)
             
+            # File is automatically closed after this point
             return response
             
         except Exception as e:
