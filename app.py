@@ -9,6 +9,7 @@ __updated_at__ = "2025-12-10T15:00:00Z"
 from flask import Flask, request, send_file, jsonify
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
+from bs4 import BeautifulSoup
 import io
 import os
 import json
@@ -242,7 +243,8 @@ def require_super_user(f):
 def sanitize_and_enhance_html(html_content, base_url=None):
     """
     Sanitize and enhance HTML for browser-like PDF rendering.
-    Preserves all browser rendering behaviors.
+    Preserves all browser rendering behaviors and fixes common HTML errors.
+    Uses html5lib parser to handle broken HTML exactly like browsers do.
     
     Args:
         html_content: Raw HTML string
@@ -251,53 +253,132 @@ def sanitize_and_enhance_html(html_content, base_url=None):
     Returns:
         Enhanced HTML string
     """
-    # Ensure HTML has proper structure
-    if not re.search(r'<!DOCTYPE\s+html>', html_content, re.IGNORECASE):
-        html_content = '<!DOCTYPE html>\n' + html_content
-    
-    # Ensure html tag exists
-    if not re.search(r'<html[^>]*>', html_content, re.IGNORECASE):
-        html_content = re.sub(r'<!DOCTYPE html>\s*', '<!DOCTYPE html>\n<html>\n', html_content, flags=re.IGNORECASE)
-        html_content += '\n</html>'
-    
-    # Ensure head tag exists
-    if not re.search(r'<head[^>]*>', html_content, re.IGNORECASE):
-        html_content = re.sub(r'(<html[^>]*>)', r'\1\n<head></head>', html_content, flags=re.IGNORECASE)
-    
-    # Ensure body tag exists
-    if not re.search(r'<body[^>]*>', html_content, re.IGNORECASE):
-        # Find content between </head> and </html> or start of content
-        html_content = re.sub(r'(</head>\s*)', r'\1<body>\n', html_content, flags=re.IGNORECASE)
-        html_content = re.sub(r'(</html>)', r'</body>\n\1', html_content, flags=re.IGNORECASE)
-    
-    # Add charset if missing
-    if not re.search(r'<meta[^>]*charset', html_content, re.IGNORECASE):
+    try:
+        # Use html5lib parser which mimics browser HTML5 parsing
+        # This handles malformed HTML, missing tags, and other errors just like browsers
+        soup = BeautifulSoup(html_content, 'html5lib')
+        
+        # The html5lib parser automatically:
+        # - Fixes malformed DOCTYPE declarations
+        # - Adds missing <html>, <head>, and <body> tags
+        # - Closes unclosed tags
+        # - Fixes nesting issues
+        # - Handles character encoding properly
+        
+        # Now apply CSS fixes that browsers auto-correct
+        html_str = str(soup)
+        
+        # Fix invalid CSS property names (maxheight -> max-height, etc.)
+        html_str = re.sub(r'\bmaxheight\b', 'max-height', html_str, flags=re.IGNORECASE)
+        html_str = re.sub(r'\bmaxwidth\b', 'max-width', html_str, flags=re.IGNORECASE)
+        html_str = re.sub(r'\bminheight\b', 'min-height', html_str, flags=re.IGNORECASE)
+        html_str = re.sub(r'\bminwidth\b', 'min-width', html_str, flags=re.IGNORECASE)
+        
+        # Fix "undefinedpx" font-size values (set to 16px default)
+        html_str = re.sub(r'font-size:\s*undefinedpx', 'font-size: 16px', html_str, flags=re.IGNORECASE)
+        
+        # Fix invalid CSS values with "undefined"
+        html_str = re.sub(r':\s*undefined\b', ': inherit', html_str, flags=re.IGNORECASE)
+        
+        # Fix -margin CSS property (invalid, remove the dash)
+        html_str = re.sub(r'-margin:', 'margin:', html_str, flags=re.IGNORECASE)
+        html_str = re.sub(r'-font-family:', 'font-family:', html_str, flags=re.IGNORECASE)
+        
+        # Parse again to work with the cleaned HTML
+        soup = BeautifulSoup(html_str, 'html5lib')
+        
+        # Add charset meta tag if missing
+        if not soup.find('meta', attrs={'charset': True}):
+            if soup.head:
+                charset_meta = soup.new_tag('meta', charset='UTF-8')
+                soup.head.insert(0, charset_meta)
+        
+        # Add viewport meta tag for responsive rendering if missing
+        if not soup.find('meta', attrs={'name': 'viewport'}):
+            if soup.head:
+                viewport_meta = soup.new_tag('meta')
+                viewport_meta['name'] = 'viewport'
+                viewport_meta['content'] = 'width=device-width, initial-scale=1.0'
+                soup.head.append(viewport_meta)
+        
+        # Add base tag if base_url is provided and not already present
+        if base_url and not soup.find('base'):
+            if soup.head:
+                base_tag = soup.new_tag('base', href=base_url)
+                soup.head.insert(0, base_tag)
+        
+        return str(soup)
+        
+    except Exception as e:
+        logger.warning(f"Error in HTML sanitization with html5lib, falling back to basic cleanup: {str(e)}")
+        
+        # Fallback to basic regex-based cleanup if BeautifulSoup fails
+        # Fix common HTML syntax errors that browsers auto-correct
+        
+        # Fix malformed DOCTYPE declarations
         html_content = re.sub(
-            r'(<head[^>]*>)',
-            r'\1\n    <meta charset="UTF-8">',
+            r'<!DOCTYPE[^>]*html[^>]*><html',
+            r'<!DOCTYPE html>\n<html',
             html_content,
             flags=re.IGNORECASE
         )
-    
-    # Add viewport meta tag for responsive rendering
-    if not re.search(r'<meta[^>]*viewport', html_content, re.IGNORECASE):
-        html_content = re.sub(
-            r'(<meta charset="UTF-8">)',
-            r'\1\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
-            html_content,
-            flags=re.IGNORECASE
-        )
-    
-    # Add base tag if base_url is provided
-    if base_url and not re.search(r'<base[^>]*href', html_content, re.IGNORECASE):
-        html_content = re.sub(
-            r'(<head[^>]*>)',
-            f'\\1\n    <base href="{base_url}">',
-            html_content,
-            flags=re.IGNORECASE
-        )
-    
-    return html_content
+        
+        # Fix invalid CSS property names
+        html_content = re.sub(r'\bmaxheight\b', 'max-height', html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r'\bmaxwidth\b', 'max-width', html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r'\bminheight\b', 'min-height', html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r'\bminwidth\b', 'min-width', html_content, flags=re.IGNORECASE)
+        
+        # Fix "undefinedpx" values
+        html_content = re.sub(r'font-size:\s*undefinedpx', 'font-size: 16px', html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r':\s*undefined\b', ': inherit', html_content, flags=re.IGNORECASE)
+        
+        # Ensure HTML has proper structure
+        if not re.search(r'<!DOCTYPE\s+html>', html_content, re.IGNORECASE):
+            html_content = '<!DOCTYPE html>\n' + html_content
+        
+        # Ensure html tag exists
+        if not re.search(r'<html[^>]*>', html_content, re.IGNORECASE):
+            html_content = re.sub(r'<!DOCTYPE html>\s*', '<!DOCTYPE html>\n<html>\n', html_content, flags=re.IGNORECASE)
+            html_content += '\n</html>'
+        
+        # Ensure head tag exists
+        if not re.search(r'<head[^>]*>', html_content, re.IGNORECASE):
+            html_content = re.sub(r'(<html[^>]*>)', r'\1\n<head></head>', html_content, flags=re.IGNORECASE)
+        
+        # Ensure body tag exists
+        if not re.search(r'<body[^>]*>', html_content, re.IGNORECASE):
+            html_content = re.sub(r'(</head>\s*)', r'\1<body>\n', html_content, flags=re.IGNORECASE)
+            html_content = re.sub(r'(</html>)', r'</body>\n\1', html_content, flags=re.IGNORECASE)
+        
+        # Add charset if missing
+        if not re.search(r'<meta[^>]*charset', html_content, re.IGNORECASE):
+            html_content = re.sub(
+                r'(<head[^>]*>)',
+                r'\1\n    <meta charset="UTF-8">',
+                html_content,
+                flags=re.IGNORECASE
+            )
+        
+        # Add viewport meta tag
+        if not re.search(r'<meta[^>]*viewport', html_content, re.IGNORECASE):
+            html_content = re.sub(
+                r'(<meta charset="UTF-8">)',
+                r'\1\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
+                html_content,
+                flags=re.IGNORECASE
+            )
+        
+        # Add base tag if base_url is provided
+        if base_url and not re.search(r'<base[^>]*href', html_content, re.IGNORECASE):
+            html_content = re.sub(
+                r'(<head[^>]*>)',
+                f'\\1\n    <base href="{base_url}">',
+                html_content,
+                flags=re.IGNORECASE
+            )
+        
+        return html_content
 
 def get_default_pdf_css():
     """

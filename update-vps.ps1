@@ -47,12 +47,17 @@ try {
     scp "$LocalPath\RENDERING_IMPROVEMENTS.md" "${VPSUser}@${VPSHost}:${VPSPath}/"
     scp "$LocalPath\IMPROVEMENTS_SUMMARY.md" "${VPSUser}@${VPSHost}:${VPSPath}/"
     scp "$LocalPath\VPS_UPDATE_GUIDE.md" "${VPSUser}@${VPSHost}:${VPSPath}/"
+    scp "$LocalPath\BROWSER_LIKE_RENDERING.md" "${VPSUser}@${VPSHost}:${VPSPath}/"
+    scp "$LocalPath\HTML_ERRORS_FIXED.md" "${VPSUser}@${VPSHost}:${VPSPath}/"
+    scp "$LocalPath\QUICK_START_ERROR_HANDLING.md" "${VPSUser}@${VPSHost}:${VPSPath}/"
+    scp "$LocalPath\BEFORE_AFTER_COMPARISON.md" "${VPSUser}@${VPSHost}:${VPSPath}/"
     
     Write-Host "   Uploading examples..."
     scp "$LocalPath\examples\enhanced_usage_example.py" "${VPSUser}@${VPSHost}:${VPSPath}/examples/"
     
-    Write-Host "   Uploading test script..."
+    Write-Host "   Uploading test scripts..."
     scp "$LocalPath\test_improvements.py" "${VPSUser}@${VPSHost}:${VPSPath}/"
+    scp "$LocalPath\test_broken_html.py" "${VPSUser}@${VPSHost}:${VPSPath}/"
     
     Write-Host "   Uploading update script..."
     scp "$LocalPath\update-vps.sh" "${VPSUser}@${VPSHost}:${VPSPath}/"
