@@ -8,8 +8,11 @@ __version__ = "2.0.0"
 __updated_at__ = "2026-01-05T00:00:00Z"
 
 from flask import Flask, request, send_file, jsonify
-import asyncio
-from pyppeteer import launch
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+import base64
 import io
 import os
 import json
@@ -18,7 +21,6 @@ from datetime import datetime, timedelta
 from functools import wraps
 from dotenv import load_dotenv
 from collections import defaultdict
-import tempfile
 
 # Load environment variables
 load_dotenv()
@@ -239,9 +241,9 @@ def require_super_user(f):
         return f(*args, **kwargs)
     return decorated_function
 
-async def html_to_pdf_puppeteer(html_content, options=None):
+def html_to_pdf_selenium(html_content, options=None):
     """
-    Convert HTML to PDF using Puppeteer (headless Chrome).
+    Convert HTML to PDF using Selenium with headless Chrome.
     This renders HTML exactly like a real browser, handling all errors gracefully.
     
     Args:
@@ -254,71 +256,89 @@ async def html_to_pdf_puppeteer(html_content, options=None):
     if options is None:
         options = {}
     
-    browser = None
+    # Configure Chrome options for headless mode
+    chrome_options = Options()
+    chrome_options.add_argument('--headless=new')  # New headless mode
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--disable-dev-shm-usage')
+    chrome_options.add_argument('--disable-gpu')
+    
+    # Set viewport size
+    viewport_width = options.get('viewport_width', 1920)
+    viewport_height = options.get('viewport_height', 1080)
+    chrome_options.add_argument(f'--window-size={viewport_width},{viewport_height}')
+    
+    # Enable printing
+    chrome_options.add_argument('--enable-print-browser')
+    
+    # Build print options for PDF
+    print_options = {
+        'printBackground': True,
+        'preferCSSPageSize': False
+    }
+    
+    # Set page size if specified
+    page_size = options.get('page_size', 'A4')
+    if page_size and page_size.lower() != 'auto':
+        # Map common page sizes to dimensions in inches
+        page_sizes = {
+            'A4': {'paperWidth': 8.27, 'paperHeight': 11.69},
+            'Letter': {'paperWidth': 8.5, 'paperHeight': 11},
+            'Legal': {'paperWidth': 8.5, 'paperHeight': 14},
+            'A3': {'paperWidth': 11.69, 'paperHeight': 16.54}
+        }
+        if page_size in page_sizes:
+            print_options.update(page_sizes[page_size])
+    
+    # Set margins (convert to inches)
+    margin = options.get('margin', '0')
     try:
-        # Launch headless Chrome
-        browser = await launch({
-            'headless': True,
-            'args': [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--disable-gpu',
-                '--window-size=1920x1080'
-            ]
-        })
+        margin_val = float(margin.replace('px', '').replace('cm', '').replace('mm', '')) / 96  # Approximate conversion
+    except:
+        margin_val = 0
+    
+    print_options['marginTop'] = margin_val
+    print_options['marginRight'] = margin_val
+    print_options['marginBottom'] = margin_val
+    print_options['marginLeft'] = margin_val
+    
+    # Initialize Chrome driver
+    driver = None
+    last_error = None
+    
+    try:
+        # Try to use webdriver-manager to auto-install driver
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+    except Exception as e:
+        # Fallback: try without service (use system chromedriver if available)
+        last_error = e
+        logger.warning(f"WebDriver Manager failed: {e}. Trying system chromedriver...")
+        try:
+            driver = webdriver.Chrome(options=chrome_options)
+        except Exception as e2:
+            raise Exception(f"Could not initialize Chrome. WebDriver Manager error: {last_error}. System Chrome error: {e2}")
+    
+    try:
+        # Load HTML content using data URL
+        data_url = f"data:text/html;charset=utf-8,{html_content}"
+        driver.get(data_url)
         
-        page = await browser.newPage()
+        # Wait for page to load
+        driver.implicitly_wait(2)
         
-        # Set viewport for consistent rendering
-        viewport_width = options.get('viewport_width', 1920)
-        viewport_height = options.get('viewport_height', 1080)
-        await page.setViewport({'width': viewport_width, 'height': viewport_height})
+        # Generate PDF using Chrome DevTools Protocol
+        pdf_base64 = driver.execute_cdp_cmd('Page.printToPDF', print_options)
+        pdf_bytes = base64.b64decode(pdf_base64['data'])
         
-        # Load HTML content
-        base_url = options.get('base_url', 'about:blank')
-        await page.setContent(html_content, {
-            'waitUntil': 'networkidle0',  # Wait for network to be idle
-            'timeout': 30000
-        })
-        
-        # Build PDF options
-        pdf_options = {
-            'printBackground': True,
-            'preferCSSPageSize': options.get('page_size') == 'auto'
-        }
-        
-        # Set page size if specified
-        page_size = options.get('page_size', 'A4')
-        if page_size and page_size != 'auto':
-            pdf_options['format'] = page_size
-        
-        # Set margins
-        margin = options.get('margin', '0')
-        pdf_options['margin'] = {
-            'top': margin,
-            'right': margin,
-            'bottom': margin,
-            'left': margin
-        }
-        
-        # Set custom width/height if specified
-        if options.get('width'):
-            pdf_options['width'] = options.get('width')
-        if options.get('height'):
-            pdf_options['height'] = options.get('height')
-        
-        # Generate PDF
-        pdf_bytes = await page.pdf(pdf_options)
-        
-        await browser.close()
         return pdf_bytes
         
-    except Exception as e:
-        if browser:
-            await browser.close()
-        raise e
+    finally:
+        if driver:
+            try:
+                driver.quit()
+            except:
+                pass
 
 @app.route('/', methods=['GET'])
 def home():
@@ -465,36 +485,13 @@ def convert_html_to_pdf():
             'viewport_height': viewport_height
         }
         
-        # Convert HTML to PDF using Puppeteer (async function)
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        pdf_bytes = loop.run_until_complete(html_to_pdf_puppeteer(html_content, options))
-        loop.close()
+        # Convert HTML to PDF using Selenium with headless Chrome
+        pdf_bytes = html_to_pdf_selenium(html_content, options)
         
         pdf_buffer = io.BytesIO(pdf_bytes)
         pdf_buffer.seek(0)
         
         logger.info(f"PDF generated successfully: {filename} ({len(pdf_bytes)} bytes)")
-        
-        # Return PDF as downloadable file
-        return send_file(
-            pdf_buffer,
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=filename
-        )
-        
-    except Exception as e:
-        logger.error(f"Error converting HTML to PDF: {str(e)}", exc_info=True)
-        return jsonify({
-            'error': f'Failed to convert HTML to PDF: {str(e)}',
-            'type': type(e).__name__
-        }), 500
-        
-        # Reset buffer position to beginning
-        pdf_buffer.seek(0)
-        
-        logger.info(f"PDF generated successfully: {filename} ({pdf_buffer.getbuffer().nbytes} bytes)")
         
         # Return PDF as downloadable file
         return send_file(
