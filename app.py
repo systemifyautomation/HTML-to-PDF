@@ -17,6 +17,7 @@ import io
 import os
 import json
 import logging
+import tempfile
 from datetime import datetime, timedelta
 from functools import wraps
 from dotenv import load_dotenv
@@ -305,6 +306,7 @@ def html_to_pdf_selenium(html_content, options=None):
     # Initialize Chrome driver
     driver = None
     last_error = None
+    temp_file = None
     
     try:
         # Try to use webdriver-manager to auto-install driver
@@ -320,12 +322,17 @@ def html_to_pdf_selenium(html_content, options=None):
             raise Exception(f"Could not initialize Chrome. WebDriver Manager error: {last_error}. System Chrome error: {e2}")
     
     try:
-        # Load HTML content using data URL
-        data_url = f"data:text/html;charset=utf-8,{html_content}"
-        driver.get(data_url)
+        # Write HTML to temporary file (safer than data URL for complex HTML)
+        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8')
+        temp_file.write(html_content)
+        temp_file.close()
+        
+        # Load the HTML file
+        file_url = f"file:///{temp_file.name.replace(chr(92), '/')}"
+        driver.get(file_url)
         
         # Wait for page to load
-        driver.implicitly_wait(2)
+        driver.implicitly_wait(3)
         
         # Generate PDF using Chrome DevTools Protocol
         pdf_base64 = driver.execute_cdp_cmd('Page.printToPDF', print_options)
@@ -337,6 +344,12 @@ def html_to_pdf_selenium(html_content, options=None):
         if driver:
             try:
                 driver.quit()
+            except:
+                pass
+        # Clean up temp file
+        if temp_file and os.path.exists(temp_file.name):
+            try:
+                os.unlink(temp_file.name)
             except:
                 pass
 
