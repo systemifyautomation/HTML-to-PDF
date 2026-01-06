@@ -1,13 +1,13 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "name": "HTML-to-PDF API",
-  "updated_at": "2025-12-10T15:00:00Z",
+  "updated_at": "2026-01-05T22:00:00Z",
   "changelog": [
-    "Added screenshot mode - PDFs auto-sized to content (no fixed page format)",
-    "Added fixed-width mode with auto height",
-    "Support for custom width sizing (desktop/mobile views)",
-    "Default mode changed to 'auto' for screenshot-like output",
-    "Zero margins by default for pixel-perfect rendering",
+    "Switched to Selenium with headless Chrome for browser-perfect rendering",
+    "Fixed blank PDF issue - now uses temporary file instead of data URL",
+    "Handles broken HTML syntax errors gracefully (maxheight, undefinedpx, etc)",
+    "No compilation required - pure Python packages",
+    "Updated Dockerfile to use modern GPG key method",
     "Enhanced PDF rendering to match browser display exactly",
     "Added browser-default CSS for all HTML elements"
   ]
