@@ -1,376 +1,441 @@
-# Deployment Guide - Hostinger VPS
+# Deployment Guide
 
-This guide covers deploying the HTML-to-PDF Converter API to your Hostinger VPS at `htmltopdf.systemifyautomation.com:9000`.
+Complete guide to deploying HTML-to-PDF Converter API on your VPS.
 
-## 📋 Prerequisites
+---
 
-- Hostinger VPS with SSH access
-- Domain configured: `htmltopdf.systemifyautomation.com`
-- Python 3.8+ installed on VPS
-- Virtual environment created on VPS
-- Git installed on VPS
+## 📋 Table of Contents
 
-## 🚀 Deployment Steps
+- [Prerequisites](#prerequisites)
+- [Quick Deployment](#quick-deployment)
+- [Detailed Setup](#detailed-setup)
+- [SSL/HTTPS Configuration](#ssl-https-configuration)
+- [Verify Deployment](#verify-deployment)
+- [Troubleshooting](#troubleshooting)
 
-### 1. Connect to Your VPS
+---
+
+## Prerequisites
+
+### What You Need
+
+- **VPS**: Any Linux VPS (Ubuntu 20.04+ recommended)
+  - Minimum: 1GB RAM, 1 CPU
+  - Recommended: 2GB RAM, 2 CPU
+- **Domain**: Pointed to your VPS IP
+- **SSH Access**: Root or sudo user
+- **20 minutes**: For complete setup
+
+### Supported Platforms
+
+✅ Ubuntu 20.04 / 22.04 / 24.04  
+✅ Debian 10 / 11 / 12  
+✅ CentOS 8+ / Rocky Linux  
+✅ Any systemd-based Linux
+
+---
+
+## Quick Deployment
+
+### Step 1: Connect to VPS
 
 ```bash
-ssh your-username@htmltopdf.systemifyautomation.com
+ssh root@your-domain.com
 ```
 
-### 2. Install System Dependencies
+### Step 2: Install Dependencies
 
 ```bash
-# Update package list
-sudo apt-get update
+# Update system
+apt-get update && apt-get upgrade -y
 
-# Install Playwright dependencies
-sudo apt-get install -y python3-dev python3-pip python3-setuptools python3-wheel \
-    python3-cffi libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
-    libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
-    libxfixes3 libxrandr2 libgbm1 libasound2 libxshmfence1
-
-# Install git if not present
-sudo apt-get install -y git
+# Install Python and system dependencies
+apt-get install -y python3 python3-pip python3-venv git \
+  libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 libasound2t64 \
+  libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxfixes3 \
+  fonts-liberation fonts-noto-color-emoji
 ```
 
-### 3. Clone the Repository
+### Step 3: Create Installation Directory
 
 ```bash
-# Navigate to your preferred directory
-cd /home/your-username/apps  # Adjust path as needed
-
-# Clone the repository
-git clone https://github.com/systemifyautomation/HTML-to-PDF.git
-cd HTML-to-PDF
+mkdir -p /opt/html-to-pdf
+cd /opt/html-to-pdf
 ```
 
-### 4. Set Up Python Virtual Environment
+### Step 4: Setup Application
 
 ```bash
-# Create virtual environment if not exists
+# Create virtual environment
 python3 -m venv venv
-
-# Activate virtual environment
 source venv/bin/activate
 
-# Install dependencies
-pip install --upgrade pip
-pip install -r requirements.txt
+# Install Python packages
+pip install Flask==3.0.0 gunicorn==22.0.0 playwright==1.40.0
 
-# Install Playwright browsers
+# Install Playwright browser
 playwright install chromium
-playwright install-deps chromium
 ```
 
-### 5. Configure Environment Variables
+### Step 5: Upload Your Code
+
+**From your local machine:**
+
+```powershell
+# Upload main files
+scp app.py version.json requirements.txt root@your-domain.com:/opt/html-to-pdf/
+
+# Upload key generator
+scp generate_api_key.py root@your-domain.com:/opt/html-to-pdf/
+```
+
+### Step 6: Generate API Keys
 
 ```bash
-# Create .env file
-nano .env
-```
+# SSH into VPS
+ssh root@your-domain.com
 
-Add the following content:
-```env
-FLASK_ENV=production
-PORT=9000
-HOST=0.0.0.0
-MAX_CONTENT_LENGTH=16777216
-LOG_LEVEL=INFO
-```
-
-### 6. Test the Application
-
-```bash
-# Make sure virtual environment is activated
+cd /opt/html-to-pdf
 source venv/bin/activate
 
-# Run the application
-python app.py
+# Generate your first API key
+python generate_api_key.py add "Production Key"
 ```
 
-Test from another terminal:
-```bash
-curl http://localhost:9000/health
-```
+### Step 7: Create Systemd Service
 
-If successful, press `Ctrl+C` to stop the test server.
-
-### 7. Set Up Systemd Service (Run as Background Service)
-
-```bash
-# Create systemd service file
-sudo nano /etc/systemd/system/htmltopdf.service
-```
-
-Copy the contents from `deployment/htmltopdf.service` (see below), adjusting paths:
+Create `/etc/systemd/system/html-to-pdf.service`:
 
 ```ini
 [Unit]
-Description=HTML to PDF Converter API
+Description=HTML-to-PDF Converter API
 After=network.target
 
 [Service]
-Type=exec
-User=your-username
-Group=your-username
-WorkingDirectory=/home/your-username/apps/HTML-to-PDF
-Environment="PATH=/home/your-username/apps/HTML-to-PDF/venv/bin"
-ExecStart=/home/your-username/apps/HTML-to-PDF/venv/bin/gunicorn -w 4 -b 0.0.0.0:9000 --timeout 120 app:app
+Type=notify
+User=root
+WorkingDirectory=/opt/html-to-pdf
+Environment="PATH=/opt/html-to-pdf/venv/bin"
+ExecStart=/opt/html-to-pdf/venv/bin/gunicorn \
+    --workers 4 \
+    --bind 0.0.0.0:5000 \
+    --timeout 120 \
+    --access-logfile /var/log/html-to-pdf-access.log \
+    --error-logfile /var/log/html-to-pdf-error.log \
+    app:app
 Restart=always
-RestartSec=10
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-**Important**: Replace `your-username` and adjust paths to match your VPS setup.
-
-### 8. Enable and Start the Service
+### Step 8: Start Service
 
 ```bash
-# Reload systemd daemon
-sudo systemctl daemon-reload
+# Reload systemd
+systemctl daemon-reload
 
-# Enable service to start on boot
-sudo systemctl enable htmltopdf
-
-# Start the service
-sudo systemctl start htmltopdf
+# Enable and start service
+systemctl enable html-to-pdf
+systemctl start html-to-pdf
 
 # Check status
-sudo systemctl status htmltopdf
+systemctl status html-to-pdf
 ```
 
-### 9. Set Up SSL with Nginx (Recommended for Production)
+---
 
-**Option A: Automated Setup (Easiest)**
+## SSL/HTTPS Configuration
+
+### Option 1: With Existing Traefik
+
+If you already have Traefik running (e.g., for n8n):
+
+**Create nginx proxy container:**
 
 ```bash
-# Make script executable
-chmod +x ~/HTML-to-PDF/deployment/setup-ssl.sh
-
-# Run the SSL setup script
-sudo ~/HTML-to-PDF/deployment/setup-ssl.sh
+cd /opt/html-to-pdf
+mkdir -p traefik-proxy
+cd traefik-proxy
 ```
 
-This script will:
-- Install Nginx and Certbot
-- Configure Nginx as reverse proxy
-- Obtain free SSL certificate from Let's Encrypt
-- Set up automatic certificate renewal
-- Configure HTTPS on port 443
+**Create `Dockerfile`:**
 
-**Option B: Manual Setup**
+```dockerfile
+FROM nginx:alpine
+COPY nginx.conf /etc/nginx/nginx.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+**Create `nginx.conf`:**
+
+```nginx
+events {
+    worker_connections 1024;
+}
+
+http {
+    server {
+        listen 80;
+        
+        location / {
+            proxy_pass http://host.docker.internal:5000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+}
+```
+
+**Create `docker-compose.yml`:**
+
+```yaml
+version: '3.8'
+
+services:
+  htmltopdf-proxy:
+    build: .
+    container_name: htmltopdf-proxy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.htmltopdf.rule=Host(`htmltopdf.your-domain.com`)"
+      - "traefik.http.routers.htmltopdf.entrypoints=websecure"
+      - "traefik.http.routers.htmltopdf.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.htmltopdf.loadbalancer.server.port=80"
+
+networks:
+  traefik:
+    external: true
+```
+
+**Start proxy:**
 
 ```bash
-# Install Nginx and Certbot
-sudo apt update
-sudo apt install -y nginx certbot python3-certbot-nginx
+docker-compose up -d
+```
 
-# Copy Nginx configuration
-sudo cp ~/HTML-to-PDF/deployment/nginx.conf /etc/nginx/sites-available/htmltopdf
+### Option 2: Standalone Nginx + Let's Encrypt
 
+If you don't have Traefik:
+
+```bash
+# Install nginx and certbot
+apt-get install -y nginx certbot python3-certbot-nginx
+
+# Create nginx config
+nano /etc/nginx/sites-available/htmltopdf
+```
+
+**Nginx configuration:**
+
+```nginx
+server {
+    listen 80;
+    server_name htmltopdf.your-domain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+```bash
 # Enable site
-sudo ln -s /etc/nginx/sites-available/htmltopdf /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/htmltopdf /etc/nginx/sites-enabled/
+nginx -t
+systemctl reload nginx
 
-# Remove default site (optional)
-sudo rm -f /etc/nginx/sites-enabled/default
-
-# Test configuration
-sudo nginx -t
-
-# Restart Nginx
-sudo systemctl restart nginx
-sudo systemctl enable nginx
-
-# Obtain SSL certificate
-sudo certbot --nginx -d htmltopdf.systemifyautomation.com
-
-# Enable automatic renewal
-sudo systemctl enable certbot.timer
-sudo systemctl start certbot.timer
+# Get SSL certificate
+certbot --nginx -d htmltopdf.your-domain.com
 ```
 
-### 10. Configure Firewall
+---
+
+## Verify Deployment
+
+### Test Endpoints
 
 ```bash
-# Allow HTTP and HTTPS
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
+# Health check
+curl https://htmltopdf.your-domain.com/health
 
-# Optional: Allow direct access to app (if not using Nginx)
-sudo ufw allow 9001/tcp
+# Version
+curl https://htmltopdf.your-domain.com/version
 
-sudo ufw reload
-```
-
-### 11. Test the Deployment
-
-**Without SSL (direct to app):**
-```bash
-curl http://localhost:9001/health
-```
-
-**With SSL (through Nginx):**
-```bash
-# From your VPS
-curl https://localhost/health
-
-# From your local machine
-curl https://htmltopdf.systemifyautomation.com/health
-```
-
-**Test PDF conversion with authentication:**
-```bash
-curl -X POST https://htmltopdf.systemifyautomation.com/convert \
+# PDF generation
+curl -X POST https://htmltopdf.your-domain.com/convert \
+  -H "X-API-Key: your-generated-key" \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: your-api-key" \
-  -d '{"html": "<h1>Test</h1>", "filename": "test.pdf"}' \
+  -d '{"html":"<h1>Test</h1>","filename":"test.pdf"}' \
   --output test.pdf
 ```
 
-## 🔄 Updating the Application
-
-To pull the latest changes and restart:
+### Check Service Status
 
 ```bash
-# Navigate to app directory
-cd /home/your-username/apps/HTML-to-PDF
+# Service status
+systemctl status html-to-pdf
 
-# Pull latest changes
-git pull origin main
+# View logs
+journalctl -u html-to-pdf -n 50
 
-# Activate virtual environment
+# Access logs
+tail -f /var/log/html-to-pdf-access.log
+
+# Error logs
+tail -f /var/log/html-to-pdf-error.log
+```
+
+---
+
+## Troubleshooting
+
+### Service Won't Start
+
+**Check logs:**
+```bash
+journalctl -u html-to-pdf -n 100
+```
+
+**Common issues:**
+- Missing dependencies: `pip install -r requirements.txt`
+- Chromium not installed: `playwright install chromium`
+- Port conflict: Check if port 5000 is available
+- Permission issues: Ensure correct file ownership
+
+### PDF Generation Fails
+
+**Test Playwright:**
+```bash
+cd /opt/html-to-pdf
 source venv/bin/activate
-
-# Update dependencies (if requirements.txt changed)
-pip install -r requirements.txt
-
-# Restart the service
-sudo systemctl restart htmltopdf
-
-# Check status
-sudo systemctl status htmltopdf
+python -c "from playwright.sync_api import sync_playwright; print('Playwright OK')"
 ```
 
-## 🔧 Useful Commands
-
-### View Logs
+**Check Chromium:**
 ```bash
-# View service logs
-sudo journalctl -u htmltopdf -f
-
-# View last 100 lines
-sudo journalctl -u htmltopdf -n 100
+playwright install chromium
 ```
 
-### Service Management
+**Missing system libraries:**
 ```bash
-# Start service
-sudo systemctl start htmltopdf
-
-# Stop service
-sudo systemctl stop htmltopdf
-
-# Restart service
-sudo systemctl restart htmltopdf
-
-# Check status
-sudo systemctl status htmltopdf
-
-# Disable service (won't start on boot)
-sudo systemctl disable htmltopdf
+apt-get install -y libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 \
+  libasound2t64 libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
+  libxfixes3 fonts-liberation fonts-noto-color-emoji
 ```
 
-## 🔒 Security Recommendations
+### SSL/HTTPS Issues
 
-1. **Firewall**: Only allow necessary ports (SSH, 9000)
-2. **HTTPS**: Consider setting up nginx reverse proxy with SSL/TLS
-3. **Authentication**: Add API key authentication if needed
-4. **Rate Limiting**: Implement rate limiting for production use
-5. **Updates**: Keep system and dependencies updated
+**Traefik not routing:**
+- Check docker network: `docker network ls`
+- Verify labels in docker-compose.yml
+- Check Traefik logs: `docker logs traefik`
 
-## 📊 SSL Certificate Management
+**Nginx errors:**
+- Test config: `nginx -t`
+- Check logs: `tail -f /var/log/nginx/error.log`
+- Verify domain DNS is correct
 
-### Check Certificate Status
+### API Key Issues
+
+**Check API keys file:**
 ```bash
-# View certificate details
-sudo certbot certificates
-
-# Check expiration
-sudo certbot renew --dry-run
+cat /opt/html-to-pdf/.api-keys.json
 ```
 
-### Manual Certificate Renewal
+**Regenerate keys:**
 ```bash
-# Renew all certificates
-sudo certbot renew
-
-# Renew and restart Nginx
-sudo certbot renew --deploy-hook "systemctl reload nginx"
-```
-
-### Certificate Auto-Renewal
-Certificates automatically renew via systemd timer:
-```bash
-# Check renewal timer status
-sudo systemctl status certbot.timer
-
-# View renewal logs
-sudo journalctl -u certbot.renew.service
-```
-
-## 📊 Monitoring
-
-Monitor your application:
-```bash
-# Check if service is running
-systemctl is-active htmltopdf
-
-# Monitor system resources
-htop
-
-# Check port
-sudo netstat -tulpn | grep 9000
-```
-
-## 🆘 Troubleshooting
-
-### Service won't start
-```bash
-# Check logs
-sudo journalctl -u htmltopdf -n 50
-
-# Check if port is already in use
-sudo lsof -i :9000
-
-# Check permissions
-ls -la /home/your-username/apps/HTML-to-PDF
-```
-
-### Application errors
-```bash
-# Test manually
+cd /opt/html-to-pdf
 source venv/bin/activate
-python app.py
-
-# Check Python path
-which python
+python generate_api_key.py add "New Key"
 ```
 
-### Connection refused
+### Performance Issues
+
+**Increase workers:**
+
+Edit `/etc/systemd/system/html-to-pdf.service`:
+```ini
+ExecStart=/opt/html-to-pdf/venv/bin/gunicorn \
+    --workers 8 \  # Increase from 4
+    --bind 0.0.0.0:5000 \
+    --timeout 120 \
+    app:app
+```
+
+**Restart service:**
 ```bash
-# Check if service is running
-sudo systemctl status htmltopdf
-
-# Check firewall
-sudo ufw status
-
-# Test locally first
-curl http://localhost:9000/health
+systemctl daemon-reload
+systemctl restart html-to-pdf
 ```
 
-## 📞 Support
+---
 
-For issues or questions, please open an issue on the GitHub repository.
+## Next Steps
+
+✅ **Deployment complete!**
+
+**See also:**
+- [API.md](API.md) - Complete API documentation
+- [UPDATING.md](UPDATING.md) - Update your VPS with new code
+- [README.md](README.md) - Project overview
+
+---
+
+## Architecture Reference
+
+```
+┌─────────────┐
+│   Internet  │
+└──────┬──────┘
+       │ HTTPS (443)
+       ▼
+┌─────────────────┐
+│    Traefik      │  or  Nginx
+│  (SSL/Routing)  │
+└──────┬──────────┘
+       │ HTTP (80 or 5000)
+       ▼
+┌─────────────────┐
+│ Nginx Container │ (Optional - if using Traefik)
+│    (Proxy)      │
+└──────┬──────────┘
+       │ HTTP (5000)
+       ▼
+┌─────────────────┐
+│ Systemd Service │
+│   Gunicorn      │ (4 workers)
+│   Port 5000     │
+└──────┬──────────┘
+       │
+       ▼
+┌─────────────────┐
+│   Flask App     │
+│   - Auth        │
+│   - Rate Limit  │
+│   - PDF Gen     │
+└──────┬──────────┘
+       │
+       ▼
+┌─────────────────┐
+│   Playwright    │
+│   Chromium      │
+└─────────────────┘
+```
+
+---
+
+**Deployment time:** ~15-20 minutes  
+**Update time:** ~10 seconds (see [UPDATING.md](UPDATING.md))

@@ -4,7 +4,20 @@ This directory contains configuration files for deploying the HTML-to-PDF conver
 
 **See [PRODUCTION_DEPLOYMENT.md](../PRODUCTION_DEPLOYMENT.md) for complete deployment instructions.**
 
-## Quick Update from GitHub
+## Quick Update
+
+**Method 1: One-Line Update (Recommended)**
+
+From your Windows machine:
+
+```powershell
+# Update VPS with latest local changes
+.\update-vps-simple.ps1 -Auto
+```
+
+**First time setup:** Generate SSH key once (see [Quick Update Guide](../QUICK_UPDATE_GUIDE.md))
+
+**Method 2: Git-Based Update**
 
 After pushing changes to GitHub, update your production server:
 

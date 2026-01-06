@@ -1,326 +1,363 @@
-# Updating Production from GitHub
+# Updating Your VPS
 
-This guide covers how to update your production deployment when you push changes to GitHub.
+Simple guide to update your HTML-to-PDF API with new code.
 
-## Overview
+---
 
-The recommended workflow:
+## 🚀 Quick Update (Recommended)
 
-1. **Develop locally** → Test changes
-2. **Commit & push** to GitHub
-3. **Pull & deploy** on production VPS
-4. **Verify** the update worked
+### One-Command Update
 
-## Initial Setup (One-Time)
+**From your Windows machine:**
 
-If you originally deployed by uploading files manually, convert to git-based deployment:
-
-```bash
-# SSH into VPS
-ssh root@your-vps.example.com
-
-# Backup current installation
-cp -r /opt/html-to-pdf /opt/html-to-pdf.backup
-
-# Remove old directory
-rm -rf /opt/html-to-pdf
-
-# Clone from GitHub
-cd /opt
-git clone https://github.com/YOUR_USERNAME/HTML-to-PDF.git html-to-pdf
-
-# Restore API keys (DO NOT commit these!)
-cp /opt/html-to-pdf.backup/.api-keys.json /opt/html-to-pdf/
-chmod 600 /opt/html-to-pdf/.api-keys.json
-
-# Install dependencies
-cd /opt/html-to-pdf
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-playwright install chromium
-
-# Restart service
-systemctl restart html-to-pdf
+```powershell
+.\update-vps-simple.ps1 -Auto
 ```
 
-## Update Process
+That's it! Updates in ~10 seconds with:
+- ✅ Automatic API key backup
+- ✅ File upload (app.py, version.json)
+- ✅ Service restart
+- ✅ Deployment verification
+- ✅ Version confirmation
 
-### Automatic Update (Recommended)
+---
 
-Use the included update script for safe, automated updates:
+## 📋 First Time Setup
 
-```bash
-# SSH into VPS
-ssh root@your-vps.example.com
+### Enable Passwordless SSH (One-Time)
 
-# Run update script
-sudo /opt/html-to-pdf/deployment/update-from-github.sh
+**1. Generate SSH key:**
+
+```powershell
+ssh-keygen -t rsa -b 4096 -f "$env:USERPROFILE\.ssh\id_rsa" -N '""' -C "vps-access"
 ```
 
-**What it does**:
-1. ✅ Stops the service safely
-2. ✅ Backs up current state
-3. ✅ Pulls latest changes from GitHub
-4. ✅ Updates dependencies if needed
-5. ✅ Reinstalls Playwright browser if version changed
-6. ✅ Restarts the service
-7. ✅ Runs health checks
-8. ✅ Shows what changed
+**2. Copy key to VPS:**
 
-### Manual Update
-
-If you prefer manual control:
-
-```bash
-# SSH into VPS
-ssh root@your-vps.example.com
-
-# Navigate to app directory
-cd /opt/html-to-pdf
-
-# Stop service
-sudo systemctl stop html-to-pdf
-
-# Pull latest changes
-git pull origin main
-
-# If requirements.txt changed, update dependencies
-source venv/bin/activate
-pip install -r requirements.txt
-playwright install chromium
-
-# Restart service
-sudo systemctl start html-to-pdf
-
-# Check status
-sudo systemctl status html-to-pdf
-
-# Test health endpoint
-curl http://localhost:5000/health
-curl https://htmltopdf.example.com/health
+```powershell
+$pubkey = Get-Content "$env:USERPROFILE\.ssh\id_rsa.pub"
+ssh root@htmltopdf.your-domain.com "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$pubkey' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 ```
 
-## Development Workflow
+**3. Test connection** (should not ask for password):
 
-### 1. Local Development
-
-```bash
-# Make your changes locally
-cd C:\Users\YourUser\Documents\GitHub\HTML-to-PDF
-
-# Test locally
-python app.py
+```powershell
+ssh root@htmltopdf.your-domain.com "echo 'SSH key works!'"
 ```
 
-### 2. Commit and Push
+✅ **Done!** Now updates require zero interaction.
 
-```bash
-# Stage changes
-git add app.py
+---
 
-# Commit with descriptive message
-git commit -m "Add new feature: PDF margins customization"
+## 📦 Update Options
 
-# Push to GitHub
-git push origin main
+### Standard Update
+
+```powershell
+.\update-vps-simple.ps1 -Auto
 ```
 
-### 3. Deploy to Production
+Uploads:
+- `app.py` - Main application
+- `version.json` - Version info
 
-```bash
-# SSH into production
-ssh root@your-vps.example.com
+### Update with Dependencies
 
-# Run update script
-sudo /opt/html-to-pdf/deployment/update-from-github.sh
+If you changed `requirements.txt`:
+
+```powershell
+.\update-vps-simple.ps1 -Auto -UpdateDeps
 ```
 
-### 4. Verify Deployment
+Also uploads and installs:
+- `requirements.txt`
+- Updates Python packages
 
-```bash
-# Check service is running
-systemctl status html-to-pdf
+### Interactive Update
 
-# Test endpoints
-curl https://htmltopdf.example.com/health
-curl https://htmltopdf.example.com/version
+Want confirmation before updating:
 
-# Generate test PDF
-curl -X POST https://htmltopdf.example.com/convert \
-  -H "X-API-Key: YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"html":"<h1>Test</h1>"}' \
-  -o test.pdf
+```powershell
+.\update-vps-simple.ps1
 ```
 
-## Version Tagging (Best Practice)
+Will ask: "Update VPS with local changes? (y/n)"
 
-Use git tags to track production versions:
+### Skip API Key Backup
 
-```bash
-# After successful deployment, tag the release
-git tag -a v2.1.0 -m "Release 2.1.0: Added PDF margins"
-git push origin v2.1.0
+If you're testing frequently:
 
-# On VPS, you can checkout specific versions
-cd /opt/html-to-pdf
-git checkout v2.1.0
-systemctl restart html-to-pdf
-```
-
-## Rollback to Previous Version
-
-If an update causes issues:
-
-### Quick Rollback
-
-```bash
-# SSH into VPS
-ssh root@your-vps.example.com
-cd /opt/html-to-pdf
-
-# View commit history
-git log --oneline -10
-
-# Rollback to previous commit
-git reset --hard HEAD~1
-
-# Restart service
-systemctl restart html-to-pdf
-```
-
-### Rollback to Specific Version
-
-```bash
-# Using commit hash
-git checkout abc1234
-
-# Or using tag
-git checkout v2.0.0
-
-# Restart service
-systemctl restart html-to-pdf
-```
-
-## Troubleshooting Updates
-
-### Update Script Fails
-
-```bash
-# Check service logs
-journalctl -u html-to-pdf -n 50
-
-# Check git status
-cd /opt/html-to-pdf
-git status
-
-# If there are conflicts, stash local changes
-git stash
-git pull origin main
-
-# Restart service manually
-systemctl restart html-to-pdf
-```
-
-### Dependencies Won't Install
-
-```bash
-# Update pip first
-source venv/bin/activate
-pip install --upgrade pip
-
-# Reinstall all dependencies
-pip install -r requirements.txt --force-reinstall
-
-# Reinstall Playwright
-playwright install chromium
-playwright install-deps chromium
-```
-
-### Service Won't Start After Update
-
-```bash
-# Check detailed logs
-journalctl -u html-to-pdf -n 100 --no-pager
-
-# Check for syntax errors
-cd /opt/html-to-pdf
-source venv/bin/activate
-python3 -c "import app"
-
-# Rollback if needed
-git checkout HEAD~1
-systemctl restart html-to-pdf
-```
-
-## Monitoring After Updates
-
-```bash
-# Real-time logs
-journalctl -u html-to-pdf -f
-
-# Access logs
-tail -f /var/log/html-to-pdf-access.log
-
-# Error logs
-tail -f /var/log/html-to-pdf-error.log
-
-# System resource usage
-htop
-```
-
-## Best Practices
-
-1. **Always test locally** before pushing to GitHub
-2. **Use meaningful commit messages** so you know what changed
-3. **Tag releases** for easy version tracking and rollback
-4. **Monitor logs** for 5-10 minutes after updates
-5. **Keep API keys backed up** securely (not in git!)
-6. **Test the health endpoint** after every update
-7. **Update during low-traffic periods** if possible
-8. **Have a rollback plan** ready
-
-## Scheduled Updates
-
-For automated updates, create a cron job (use with caution):
-
-```bash
-# Edit crontab
-crontab -e
-
-# Add line to update every night at 2 AM
-0 2 * * * /opt/html-to-pdf/deployment/update-from-github.sh >> /var/log/html-to-pdf-auto-update.log 2>&1
-```
-
-**Warning**: Automatic updates can break production if not tested. Only use for minor updates.
-
-## CI/CD Integration (Advanced)
-
-For automated testing and deployment, consider GitHub Actions:
-
-```yaml
-# .github/workflows/deploy.yml
-name: Deploy to Production
-
-on:
-  push:
-    branches: [ main ]
-    
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to VPS
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: root
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            /opt/html-to-pdf/deployment/update-from-github.sh
+```powershell
+.\update-vps-simple.ps1 -Auto -SkipBackup
 ```
 
 ---
 
-**Remember**: The update script is included in `deployment/update-from-github.sh` and handles everything automatically!
+## 🔧 Manual Update (Alternative)
+
+If you prefer manual control:
+
+### Step 1: Backup API Keys
+
+```powershell
+ssh root@your-domain.com "cp /opt/html-to-pdf/.api-keys.json /root/.api-keys-backup-$(Get-Date -Format 'yyyyMMdd-HHmmss').json"
+```
+
+### Step 2: Upload Files
+
+```powershell
+scp app.py version.json root@your-domain.com:/opt/html-to-pdf/
+```
+
+### Step 3: Restart Service
+
+```powershell
+ssh root@your-domain.com "systemctl restart html-to-pdf"
+```
+
+### Step 4: Verify
+
+```powershell
+# Check status
+ssh root@your-domain.com "systemctl status html-to-pdf --no-pager | head -15"
+
+# Check version
+curl https://your-domain.com/version
+
+# Test health
+curl https://your-domain.com/health
+```
+
+---
+
+## 🎯 What the Update Script Does
+
+```
+========================================
+  HTML-to-PDF VPS Update Script
+========================================
+
+Backing up API keys...
+✓ API keys backed up
+
+Uploading updated files...
+app.py                    100%   26KB
+version.json              100%  765B
+✓ Files uploaded successfully
+
+Restarting service...
+✓ Service restarted
+
+Service status...
+● html-to-pdf.service - Active (running)
+  Memory: 89.3M
+  Tasks: 5 (1 master + 4 workers)
+
+Verifying update...
+Version: 2.1.0
+Updated: 2026-01-06
+
+Recent changes:
+  • Enhanced filename parameter
+  • Security sanitization
+  • Dynamic filename support
+
+========================================
+  ✓ Update completed successfully!
+========================================
+```
+
+---
+
+## 📊 Update Workflow
+
+```
+┌──────────────────┐
+│  Local Changes   │
+│  - Edit app.py   │
+│  - Update version│
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│   Run Script     │
+│ update-vps-      │
+│ simple.ps1 -Auto │
+└────────┬─────────┘
+         │
+         ├─► Backup API keys
+         ├─► Upload files (SCP)
+         ├─► Restart service
+         └─► Verify deployment
+                 │
+                 ▼
+         ┌──────────────────┐
+         │   VPS Updated    │
+         │   Version: 2.1.0 │
+         │   Status: ✓ OK   │
+         └──────────────────┘
+```
+
+---
+
+## 🛠️ Troubleshooting
+
+### SSH Key Not Working
+
+**Test connection:**
+```powershell
+ssh -v root@your-domain.com
+```
+
+**Regenerate and re-add:**
+```powershell
+ssh-keygen -t rsa -b 4096 -f "$env:USERPROFILE\.ssh\id_rsa_new" -N '""'
+$pubkey = Get-Content "$env:USERPROFILE\.ssh\id_rsa_new.pub"
+ssh root@your-domain.com "echo '$pubkey' >> ~/.ssh/authorized_keys"
+```
+
+### Upload Fails
+
+**Check connectivity:**
+```powershell
+Test-NetConnection your-domain.com -Port 22
+```
+
+**Manually test SCP:**
+```powershell
+scp version.json root@your-domain.com:/tmp/test.json
+```
+
+### Service Won't Restart
+
+**Check logs:**
+```powershell
+ssh root@your-domain.com "journalctl -u html-to-pdf -n 50"
+```
+
+**Test Python syntax:**
+```powershell
+ssh root@your-domain.com "cd /opt/html-to-pdf && python3 -m py_compile app.py"
+```
+
+### Version Doesn't Change
+
+**Check uploaded files:**
+```powershell
+ssh root@your-domain.com "ls -lh /opt/html-to-pdf/app.py /opt/html-to-pdf/version.json"
+```
+
+**View version file:**
+```powershell
+ssh root@your-domain.com "cat /opt/html-to-pdf/version.json"
+```
+
+**Force restart:**
+```powershell
+ssh root@your-domain.com "systemctl stop html-to-pdf && sleep 2 && systemctl start html-to-pdf"
+```
+
+### API Keys Lost
+
+**Restore from backup:**
+```powershell
+# List backups
+ssh root@your-domain.com "ls -lh /root/.api-keys-backup*"
+
+# Restore latest
+ssh root@your-domain.com "cp /root/.api-keys-backup-YYYYMMDD-HHMMSS.json /opt/html-to-pdf/.api-keys.json"
+
+# Restart service
+ssh root@your-domain.com "systemctl restart html-to-pdf"
+```
+
+---
+
+## 📝 Files Updated
+
+The update script handles these files:
+
+| File | Description | Always Updated? |
+|------|-------------|-----------------|
+| `app.py` | Main application | ✅ Yes |
+| `version.json` | Version info | ✅ Yes |
+| `requirements.txt` | Dependencies | ⚠️ Only with `-UpdateDeps` |
+| `.api-keys.json` | API keys | ❌ Never (backed up only) |
+
+**Never uploaded** (kept on VPS):
+- `.api-keys.json` - Server-specific configuration
+- `venv/` - Virtual environment
+- `__pycache__/` - Auto-generated cache
+
+---
+
+## 🔄 Advanced: Git-Based Updates
+
+### Setup Git on VPS (One-Time)
+
+```bash
+# SSH into VPS
+ssh root@your-domain.com
+
+# Navigate to app directory
+cd /opt/html-to-pdf
+
+# Initialize git (if not already)
+git init
+git remote add origin https://github.com/yourusername/HTML-to-PDF.git
+
+# Or clone fresh
+cd /opt
+rm -rf html-to-pdf
+git clone https://github.com/yourusername/HTML-to-PDF.git html-to-pdf
+cd html-to-pdf
+
+# Setup
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+playwright install chromium
+```
+
+### Update from GitHub
+
+```bash
+ssh root@your-domain.com << 'EOF'
+cd /opt/html-to-pdf
+git pull origin main
+source venv/bin/activate
+pip install -r requirements.txt
+systemctl restart html-to-pdf
+systemctl status html-to-pdf
+EOF
+```
+
+---
+
+## ⚡ Quick Reference
+
+| Task | Command |
+|------|---------|
+| **Standard update** | `.\update-vps-simple.ps1 -Auto` |
+| **With dependencies** | `.\update-vps-simple.ps1 -Auto -UpdateDeps` |
+| **Interactive** | `.\update-vps-simple.ps1` |
+| **Skip backup** | `.\update-vps-simple.ps1 -Auto -SkipBackup` |
+| **Check service** | `ssh root@your-domain.com "systemctl status html-to-pdf"` |
+| **View logs** | `ssh root@your-domain.com "journalctl -u html-to-pdf -n 50"` |
+| **Test API** | `curl https://your-domain.com/health` |
+| **Check version** | `curl https://your-domain.com/version` |
+
+---
+
+## 📚 Related Documentation
+
+- [README.md](README.md) - Project overview
+- [API.md](API.md) - Complete API documentation
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Initial deployment guide
+
+---
+
+**Update time:** ~10 seconds  
+**Downtime:** <1 second (service restart)  
+**Frequency:** As often as needed (automated)

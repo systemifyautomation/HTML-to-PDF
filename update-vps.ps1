@@ -1,33 +1,24 @@
-# HTML-to-PDF VPS Update Script (Windows PowerShell)
-# Run this from your Windows machine to update the VPS deployment
+# HTML-to-PDF VPS Quick Update Script
+# Simple file upload method - no git required
+# Run this from your Windows machine to update the production VPS
 
 param(
-    [string]$VPSUser = "your-username",
-    [string]$VPSHost = "htmltopdf.systemifyautomation.com",
-    [string]$VPSPath = "~/HTML-to-PDF"
+    [string]$VPS = "root@htmltopdf.systemifyautomation.com",
+    [switch]$SkipBackup,
+    [switch]$UpdateDeps,
+    [switch]$Auto
 )
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host "HTML-to-PDF VPS Update Script" -ForegroundColor Cyan
-Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host ""
+Write-Host "`n╔════════════════════════════════════════╗" -ForegroundColor Cyan
+Write-Host "║   HTML-to-PDF VPS Update Script       ║" -ForegroundColor Cyan
+Write-Host "╚════════════════════════════════════════╝`n" -ForegroundColor Cyan
 
-# Get local directory
-$LocalPath = $PSScriptRoot
-if (-not $LocalPath) {
-    $LocalPath = "C:\Users\PCZZ3\Documents\GitHub\HTML-to-PDF"
-}
-
-Write-Host "📍 Local Path: $LocalPath" -ForegroundColor Yellow
-Write-Host "🌐 VPS: ${VPSUser}@${VPSHost}" -ForegroundColor Yellow
-Write-Host "📁 Remote Path: $VPSPath" -ForegroundColor Yellow
-Write-Host ""
-
-# Confirm
-$confirm = Read-Host "Continue with update? (y/n)"
-if ($confirm -ne "y") {
+# Confirm unless -Auto is used
+if (-not $Auto) {
+    $confirm = Read-Host "Update VPS with local changes? (y/n)"
+    if ($confirm -ne "y") {
     Write-Host "Update cancelled." -ForegroundColor Red
     exit
 }
