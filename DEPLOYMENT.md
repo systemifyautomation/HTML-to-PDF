@@ -24,10 +24,11 @@ ssh your-username@htmltopdf.systemifyautomation.com
 # Update package list
 sudo apt-get update
 
-# Install WeasyPrint dependencies
+# Install Playwright dependencies
 sudo apt-get install -y python3-dev python3-pip python3-setuptools python3-wheel \
-    python3-cffi libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 libffi-dev shared-mime-info
+    python3-cffi libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
+    libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
+    libxfixes3 libxrandr2 libgbm1 libasound2 libxshmfence1
 
 # Install git if not present
 sudo apt-get install -y git
@@ -56,6 +57,10 @@ source venv/bin/activate
 # Install dependencies
 pip install --upgrade pip
 pip install -r requirements.txt
+
+# Install Playwright browsers
+playwright install chromium
+playwright install-deps chromium
 ```
 
 ### 5. Configure Environment Variables

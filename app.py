@@ -8,10 +8,7 @@ __version__ = "2.0.0"
 __updated_at__ = "2026-01-05T00:00:00Z"
 
 from flask import Flask, request, send_file, jsonify
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+from playwright.sync_api import sync_playwright
 import base64
 import io
 import os
@@ -242,9 +239,9 @@ def require_super_user(f):
         return f(*args, **kwargs)
     return decorated_function
 
-def html_to_pdf_selenium(html_content, options=None):
+def html_to_pdf_playwright(html_content, options=None):
     """
-    Convert HTML to PDF using Selenium with headless Chrome.
+    Convert HTML to PDF using Playwright with headless Chromium.
     This renders HTML exactly like a real browser, handling all errors gracefully.
     
     Args:
@@ -257,95 +254,77 @@ def html_to_pdf_selenium(html_content, options=None):
     if options is None:
         options = {}
     
-    # Configure Chrome options for headless mode
-    chrome_options = Options()
-    chrome_options.add_argument('--headless=new')  # New headless mode
-    chrome_options.add_argument('--no-sandbox')
-    chrome_options.add_argument('--disable-dev-shm-usage')
-    chrome_options.add_argument('--disable-gpu')
-    
-    # Set viewport size
-    viewport_width = options.get('viewport_width', 1920)
-    viewport_height = options.get('viewport_height', 1080)
-    chrome_options.add_argument(f'--window-size={viewport_width},{viewport_height}')
-    
-    # Enable printing
-    chrome_options.add_argument('--enable-print-browser')
-    
-    # Build print options for PDF
-    print_options = {
-        'printBackground': True,
-        'preferCSSPageSize': False
-    }
-    
-    # Set page size if specified
-    page_size = options.get('page_size', 'A4')
-    if page_size and page_size.lower() != 'auto':
-        # Map common page sizes to dimensions in inches
-        page_sizes = {
-            'A4': {'paperWidth': 8.27, 'paperHeight': 11.69},
-            'Letter': {'paperWidth': 8.5, 'paperHeight': 11},
-            'Legal': {'paperWidth': 8.5, 'paperHeight': 14},
-            'A3': {'paperWidth': 11.69, 'paperHeight': 16.54}
-        }
-        if page_size in page_sizes:
-            print_options.update(page_sizes[page_size])
-    
-    # Set margins (convert to inches)
-    margin = options.get('margin', '0')
-    try:
-        margin_val = float(margin.replace('px', '').replace('cm', '').replace('mm', '')) / 96  # Approximate conversion
-    except:
-        margin_val = 0
-    
-    print_options['marginTop'] = margin_val
-    print_options['marginRight'] = margin_val
-    print_options['marginBottom'] = margin_val
-    print_options['marginLeft'] = margin_val
-    
-    # Initialize Chrome driver
-    driver = None
-    last_error = None
     temp_file = None
     
     try:
-        # Try to use webdriver-manager to auto-install driver
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-    except Exception as e:
-        # Fallback: try without service (use system chromedriver if available)
-        last_error = e
-        logger.warning(f"WebDriver Manager failed: {e}. Trying system chromedriver...")
-        try:
-            driver = webdriver.Chrome(options=chrome_options)
-        except Exception as e2:
-            raise Exception(f"Could not initialize Chrome. WebDriver Manager error: {last_error}. System Chrome error: {e2}")
-    
-    try:
-        # Write HTML to temporary file (safer than data URL for complex HTML)
-        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8')
-        temp_file.write(html_content)
-        temp_file.close()
-        
-        # Load the HTML file
-        file_url = f"file:///{temp_file.name.replace(chr(92), '/')}"
-        driver.get(file_url)
-        
-        # Wait for page to load
-        driver.implicitly_wait(3)
-        
-        # Generate PDF using Chrome DevTools Protocol
-        pdf_base64 = driver.execute_cdp_cmd('Page.printToPDF', print_options)
-        pdf_bytes = base64.b64decode(pdf_base64['data'])
-        
-        return pdf_bytes
-        
-    finally:
-        if driver:
+        with sync_playwright() as p:
+            # Launch browser in headless mode
+            browser = p.chromium.launch(headless=True)
+            
+            # Set viewport size
+            viewport_width = options.get('viewport_width', 1920)
+            viewport_height = options.get('viewport_height', 1080)
+            
+            # Create context and page with viewport
+            context = browser.new_context(
+                viewport={'width': viewport_width, 'height': viewport_height}
+            )
+            page = context.new_page()
+            
+            # Write HTML to temporary file
+            temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8')
+            temp_file.write(html_content)
+            temp_file.close()
+            
+            # Load the HTML file
+            file_url = f"file:///{temp_file.name.replace(chr(92), '/')}"
+            page.goto(file_url, wait_until='networkidle')
+            
+            # Build PDF options
+            pdf_options = {
+                'print_background': True,
+                'prefer_css_page_size': False
+            }
+            
+            # Set page size
+            page_size = options.get('page_size', 'A4')
+            if page_size and page_size.lower() != 'auto':
+                pdf_options['format'] = page_size
+            
+            # Set margins
+            margin = options.get('margin', '0')
             try:
-                driver.quit()
+                # Extract numeric value and convert to pixels
+                margin_val = margin.replace('px', '').replace('cm', '').replace('mm', '')
+                margin_val = float(margin_val) if margin_val else 0
+                margin_str = f"{margin_val}px"
             except:
-                pass
+                margin_str = '0px'
+            
+            pdf_options['margin'] = {
+                'top': margin_str,
+                'right': margin_str,
+                'bottom': margin_str,
+                'left': margin_str
+            }
+            
+            # Set custom dimensions if provided
+            width = options.get('width')
+            height = options.get('height')
+            if width:
+                pdf_options['width'] = width
+            if height:
+                pdf_options['height'] = height
+            
+            # Generate PDF
+            pdf_bytes = page.pdf(**pdf_options)
+            
+            # Close browser
+            browser.close()
+            
+            return pdf_bytes
+            
+    finally:
         # Clean up temp file
         if temp_file and os.path.exists(temp_file.name):
             try:
@@ -498,8 +477,8 @@ def convert_html_to_pdf():
             'viewport_height': viewport_height
         }
         
-        # Convert HTML to PDF using Selenium with headless Chrome
-        pdf_bytes = html_to_pdf_selenium(html_content, options)
+        # Convert HTML to PDF using Playwright with headless Chromium
+        pdf_bytes = html_to_pdf_playwright(html_content, options)
         
         pdf_buffer = io.BytesIO(pdf_bytes)
         pdf_buffer.seek(0)

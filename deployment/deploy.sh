@@ -57,6 +57,11 @@ print_info "Updating dependencies..."
 pip install -r requirements.txt --upgrade
 print_success "Dependencies updated"
 
+# Install/update Playwright browsers
+print_info "Updating Playwright browsers..."
+playwright install chromium
+print_success "Playwright browsers updated"
+
 # Restart the service
 print_info "Restarting service..."
 sudo systemctl restart "$SERVICE_NAME"

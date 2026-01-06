@@ -6,7 +6,7 @@ This guide will help you get the HTML-to-PDF converter up and running in minutes
 
 - Python 3.8 or higher
 - pip (Python package manager)
-- System dependencies for WeasyPrint (see main README for details)
+- System dependencies for Playwright (automatically installed)
 
 ## Installation Steps
 
@@ -20,7 +20,11 @@ cd HTML-to-PDF
 ### 2. Install Dependencies
 
 ```bash
+# Install Python packages
 pip install -r requirements.txt
+
+# Install Playwright browsers
+playwright install chromium
 ```
 
 ### 3. Start the Server

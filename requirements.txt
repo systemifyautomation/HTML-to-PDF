@@ -1,7 +1,5 @@
 Flask==3.0.0
-selenium==4.15.2
-webdriver-manager==4.0.1
+playwright>=1.40.0
 Jinja2==3.1.2
 gunicorn==22.0.0
 python-dotenv==1.0.0
-clio-manage-api-client==0.1.5

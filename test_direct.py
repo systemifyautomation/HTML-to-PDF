@@ -1,7 +1,7 @@
 """
-Direct test of the Selenium conversion function
+Direct test of the Playwright conversion function
 """
-from app import html_to_pdf_selenium
+from app import html_to_pdf_playwright
 
 # Read the broken HTML file
 with open('examples/simple_template.html', 'r', encoding='utf-8') as f:
@@ -19,7 +19,7 @@ options = {
 }
 
 try:
-    pdf_bytes = html_to_pdf_selenium(html_content, options)
+    pdf_bytes = html_to_pdf_playwright(html_content, options)
     print(f"✓ SUCCESS! PDF generated: {len(pdf_bytes)} bytes")
     
     # Save the PDF

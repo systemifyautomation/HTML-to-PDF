@@ -1,0 +1,31 @@
+{
+  "super_user": {
+    "key": "test-super-user-key-12345678901234567890",
+    "name": "Test Super User",
+    "created": "2026-01-06"
+  },
+  "api_keys": [
+    {
+      "key": "test-api-key-valid-12345678901234567890",
+      "name": "Test Valid Key",
+      "created": "2026-01-06",
+      "active": true
+    },
+    {
+      "key": "test-api-key-inactive-12345678901234567890",
+      "name": "Test Inactive Key",
+      "created": "2026-01-06",
+      "active": false
+    },
+    {
+      "key": "test-api-key-ratelimit-12345678901234567890",
+      "name": "Test Rate Limit Key",
+      "created": "2026-01-06",
+      "active": true
+    }
+  ],
+  "rate_limit": {
+    "requests_per_minute": 5,
+    "requests_per_hour": 20
+  }
+}

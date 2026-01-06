@@ -5,7 +5,7 @@
 ![HTML to PDF](https://img.shields.io/badge/HTML-to_PDF-blue?style=for-the-badge&logo=adobe-acrobat-reader)
 ![Python](https://img.shields.io/badge/Python-3.8+-green?style=for-the-badge&logo=python)
 ![Flask](https://img.shields.io/badge/Flask-API-lightgrey?style=for-the-badge&logo=flask)
-![WeasyPrint](https://img.shields.io/badge/WeasyPrint-PDF_Engine-orange?style=for-the-badge)
+![Playwright](https://img.shields.io/badge/Playwright-PDF_Engine-orange?style=for-the-badge&logo=playwright)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker)
 ![Version](https://img.shields.io/badge/Version-1.2.0-brightgreen?style=for-the-badge)
@@ -107,7 +107,7 @@ graph LR
 ### 🎯 Core Features
 
 - ✅ **REST API** - Simple JSON endpoints for PDF generation
-- ✅ **High-Quality Output** - Professional PDF rendering using WeasyPrint
+- ✅ **High-Quality Output** - Professional PDF rendering using Playwright (Chromium)
 - ✅ **Screenshot Mode** - Auto-sized PDFs matching exact browser display (NEW in v1.2.0)
 - ✅ **Flexible Sizing** - Auto, fixed-width, mobile, desktop, or standard page formats
 - ✅ **Smart HTML Processing** - Automatic structure validation and correction
@@ -1107,14 +1107,15 @@ python app.py
 
 ### Common Issues
 
-#### 1. WeasyPrint Installation Fails
+#### 1. Playwright Installation Fails
 
-**Problem**: Error installing WeasyPrint or its dependencies.
+**Problem**: Error installing Playwright or its browsers.
 
 **Solution**: 
-- Ensure system dependencies are installed (see Prerequisites)
-- On Windows, follow the [official WeasyPrint Windows guide](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows)
-- Try upgrading pip: `pip install --upgrade pip`
+- Install Playwright: `pip install playwright`
+- Install browsers: `playwright install chromium`
+- If system dependencies are missing: `playwright install-deps chromium`
+- On Windows: No additional dependencies needed
 
 #### 2. PDF Generation Fails
 
@@ -1199,7 +1200,8 @@ HTML-to-PDF/
 ## 🛠️ Technology Stack
 
 - **Flask**: Web framework for the REST API
-- **WeasyPrint**: HTML to PDF rendering engine
+- **Playwright**: Browser automation for PDF rendering
+- **Chromium**: Headless browser for accurate HTML rendering
 - **Jinja2**: Template engine (included with Flask)
 - **Gunicorn**: Production WSGI server
 - **Python 3.8+**: Programming language
@@ -1265,27 +1267,29 @@ This HTML-to-PDF converter is perfect for:
 <summary><b>Add Custom Headers/Footers</b></summary>
 
 ```python
-# In app.py, modify the convert endpoint:
-from weasyprint import HTML, CSS
+# In app.py, modify the html_to_pdf_playwright function:
 
-@app.route('/convert', methods=['POST'])
-@require_api_key
-def convert_html_to_pdf():
+def html_to_pdf_playwright(html_content, options=None):
     # ... existing code ...
     
-    # Add custom CSS for headers/footers
-    custom_css = CSS(string='''
-        @page {
-            @top-center {
-                content: "Company Name";
-            }
-            @bottom-right {
-                content: "Page " counter(page) " of " counter(pages);
-            }
-        }
-    ''')
+    # Add header/footer HTML to your content before conversion
+    html_with_header = f'''
+    <html>
+    <head>
+        <style>
+            .header {{ position: fixed; top: 0; width: 100%; text-align: center; }}
+            .footer {{ position: fixed; bottom: 0; width: 100%; text-align: right; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">Company Name</div>
+        {html_content}
+        <div class="footer">Page footer</div>
+    </body>
+    </html>
+    '''
     
-    pdf = HTML(string=html_content).write_pdf(stylesheets=[custom_css])
+    # Continue with PDF generation...
 ```
 </details>
 
@@ -1394,7 +1398,7 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ## 🙏 Acknowledgments
 
-- [WeasyPrint](https://weasyprint.org/) for the excellent HTML to PDF rendering
+- [Playwright](https://playwright.dev/) for excellent browser automation and PDF rendering
 - [Flask](https://flask.palletsprojects.com/) for the web framework
 - All contributors who help improve this project
 
@@ -1422,7 +1426,7 @@ Request size is limited to 16MB by default. You can adjust this in `app.py` with
 
 <details>
 <summary><b>Does it support multiple languages?</b></summary>
-Yes! WeasyPrint supports Unicode and international fonts. Just include the appropriate fonts in your CSS.
+Yes! Playwright uses Chromium which has excellent Unicode support and international fonts. Just include the appropriate fonts in your CSS or use web fonts.
 </details>
 
 <details>
@@ -1439,8 +1443,8 @@ Securely backup `.api-keys.json` to a password manager or encrypted storage. Thi
 
 ## 📚 Resources
 
-- 📖 [WeasyPrint Documentation](https://doc.courtbouillon.org/weasyprint/stable/)
-- 🎨 [CSS Paged Media Guide](https://www.w3.org/TR/css-page-3/)
+- 📖 [Playwright Documentation](https://playwright.dev/python/docs/intro)
+- 🎨 [CSS for Print/PDF](https://www.w3.org/TR/css-page-3/)
 - 🐳 [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
 - 🔐 [API Security Checklist](https://github.com/shieldfy/API-Security-Checklist)
 - 📦 [Example PDF Templates](./examples/)
