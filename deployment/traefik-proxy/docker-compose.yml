@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  htmltopdf-proxy:
+    build: .
+    container_name: htmltopdf-proxy
+    restart: unless-stopped
+    networks:
+      - n8n_default
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.htmltopdf.rule=Host(`htmltopdf.systemifyautomation.com`)"
+      - "traefik.http.routers.htmltopdf.entrypoints=websecure"
+      - "traefik.http.routers.htmltopdf.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.htmltopdf.loadbalancer.server.port=80"
+
+networks:
+  n8n_default:
+    external: true

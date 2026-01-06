@@ -1,6 +1,27 @@
-# Deployment Directory
+# Deployment Files
 
-This directory contains configuration files and scripts for deploying the HTML-to-PDF Converter API to production servers.
+This directory contains configuration files for deploying the HTML-to-PDF converter to production.
+
+**See [PRODUCTION_DEPLOYMENT.md](../PRODUCTION_DEPLOYMENT.md) for complete deployment instructions.**
+
+## Quick Update from GitHub
+
+After pushing changes to GitHub, update your production server:
+
+```bash
+# SSH into your VPS
+ssh root@your-vps.example.com
+
+# Run the update script
+/opt/html-to-pdf/deployment/update-from-github.sh
+```
+
+The script will:
+- Pull latest changes from GitHub
+- Update dependencies if needed
+- Restart the service
+- Run health checks
+- Show you what changed
 
 ## Files
 

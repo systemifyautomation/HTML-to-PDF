@@ -4,8 +4,8 @@ A Flask-based REST API for converting HTML content to PDF documents using Puppet
 Renders HTML exactly like Chrome browser for perfect compatibility.
 """
 
-__version__ = "2.0.0"
-__updated_at__ = "2026-01-05T00:00:00Z"
+__version__ = "2.1.0"
+__updated_at__ = "2026-01-06T00:00:00Z"
 
 from flask import Flask, request, send_file, jsonify
 from playwright.sync_api import sync_playwright
@@ -414,8 +414,10 @@ def convert_html_to_pdf():
     
     Expects JSON payload with:
     - html: HTML content (required)
+    - filename: Output PDF filename (optional, default: 'document.pdf')
+                Name of the downloaded PDF file. Will be sanitized for security.
+                Example: "invoice-2024.pdf" or "report"
     - css: CSS styles (optional - will be injected into HTML)
-    - filename: Output PDF filename (optional, default: document.pdf)
     - base_url: Base URL for resolving relative URLs (optional)
     - page_size: 'auto' for content-sized, or 'A4', 'Letter', 'Legal', etc. (default: 'A4')
     - width: Custom width (optional, e.g., '1200px', '21cm')
@@ -425,7 +427,13 @@ def convert_html_to_pdf():
     - viewport_height: Browser viewport height (optional, default: 1080)
     
     Returns:
-    - PDF file as attachment
+    - PDF file as attachment with specified filename
+    
+    Example:
+    {
+        "html": "<h1>Invoice</h1><p>Total: $100</p>",
+        "filename": "invoice-12345.pdf"
+    }
     """
     try:
         # Get JSON data from request
@@ -450,6 +458,15 @@ def convert_html_to_pdf():
         viewport_width = data.get('viewport_width', 1920)
         viewport_height = data.get('viewport_height', 1080)
         
+        # Sanitize filename for security
+        # Remove path separators and potentially dangerous characters
+        filename = os.path.basename(filename)  # Remove any path components
+        filename = ''.join(c for c in filename if c.isalnum() or c in '._- ')  # Allow only safe characters
+        filename = filename.strip()  # Remove leading/trailing spaces
+        
+        # Ensure filename is not empty and has .pdf extension
+        if not filename or filename == '.pdf':
+            filename = 'document.pdf'
         if not filename.endswith('.pdf'):
             filename += '.pdf'
         

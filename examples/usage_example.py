@@ -10,18 +10,21 @@ import os
 # API endpoint
 API_URL = "http://localhost:5000/convert"
 
-def convert_html_to_pdf(html_content, css_content=None, filename="output.pdf"):
+def convert_html_to_pdf(html_content, css_content=None, filename="output.pdf", output_filename=None):
     """
     Send HTML content to the API and save the resulting PDF.
     
     Args:
         html_content (str): HTML content to convert
         css_content (str, optional): Additional CSS styles
-        filename (str): Name for the output PDF file
+        filename (str): Name for the downloaded PDF (sent to API, controls Content-Disposition header)
+        output_filename (str, optional): Local filename to save as (defaults to filename)
     
     Returns:
         bool: True if successful, False otherwise
     """
+    if output_filename is None:
+        output_filename = filename
     # Prepare the request payload
     payload = {
         "html": html_content,
@@ -42,9 +45,11 @@ def convert_html_to_pdf(html_content, css_content=None, filename="output.pdf"):
         # Check if request was successful
         if response.status_code == 200:
             # Save the PDF file
-            with open(filename, 'wb') as f:
+            with open(output_filename, 'wb') as f:
                 f.write(response.content)
-            print(f"✓ PDF saved successfully: {filename}")
+            print(f"✓ PDF saved successfully: {output_filename}")
+            if output_filename != filename:
+                print(f"  (Server filename: {filename})")
             return True
         else:
             print(f"✗ Error: {response.status_code} - {response.text}")
@@ -133,7 +138,7 @@ def example_from_file():
         print(f"✗ Template file not found: {template_path}")
 
 def example_invoice():
-    """Example 4: Convert invoice template to PDF"""
+    """Example 4: Convert invoice template to PDF with dynamic filename"""
     print("\n--- Example 4: Invoice Template ---")
     
     template_path = "examples/invoice_template.html"
@@ -141,12 +146,15 @@ def example_invoice():
     if os.path.exists(template_path):
         with open(template_path, 'r') as f:
             html = f.read()
-        convert_html_to_pdf(html, filename="invoice_example.pdf")
+        
+        # Use dynamic filename based on invoice number
+        invoice_number = "INV-2024-001"
+        convert_html_to_pdf(html, filename=f"invoice-{invoice_number}.pdf")
     else:
         print(f"✗ Template file not found: {template_path}")
 
 def example_report():
-    """Example 5: Convert report template to PDF"""
+    """Example 5: Convert report template to PDF with date-based filename"""
     print("\n--- Example 5: Report Template ---")
     
     template_path = "examples/report_template.html"
@@ -154,7 +162,11 @@ def example_report():
     if os.path.exists(template_path):
         with open(template_path, 'r') as f:
             html = f.read()
-        convert_html_to_pdf(html, filename="report_example.pdf")
+        
+        # Use current date in filename
+        from datetime import datetime
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        convert_html_to_pdf(html, filename=f"monthly-report-{date_str}.pdf")
     else:
         print(f"✗ Template file not found: {template_path}")
 

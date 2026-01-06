@@ -54,3 +54,16 @@ api-keys.json
 # Clio Configuration (NEVER commit this!)
 .clio-config.json
 clio-config.json
+
+# Deployment secrets (NEVER commit these!)
+*.key
+*.pem
+*.crt
+.env.production
+deployment/*.key
+deployment/*.pem
+deployment/*.crt
+
+# Server-specific configs
+*-production.conf
+*-production.yml

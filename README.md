@@ -108,6 +108,7 @@ graph LR
 
 - ✅ **REST API** - Simple JSON endpoints for PDF generation
 - ✅ **High-Quality Output** - Professional PDF rendering using Playwright (Chromium)
+- ✅ **Custom Filenames** - Dynamic PDF filenames with auto-sanitization for security
 - ✅ **Screenshot Mode** - Auto-sized PDFs matching exact browser display (NEW in v1.2.0)
 - ✅ **Flexible Sizing** - Auto, fixed-width, mobile, desktop, or standard page formats
 - ✅ **Smart HTML Processing** - Automatic structure validation and correction
@@ -309,8 +310,11 @@ curl http://localhost:5000/health
 curl -X POST http://localhost:5000/convert \
   -H "Content-Type: application/json" \
   -H "X-API-Key: YOUR_API_KEY" \
-  -d '{"html": "<h1>Hello PDF!</h1><p>My first document</p>"}' \
+  -d '{"html": "<h1>Hello PDF!</h1><p>My first document</p>", "filename": "my-first-document.pdf"}' \
   --output my-first.pdf
+
+# The "filename" parameter controls the download name
+# The "--output" parameter controls where it's saved locally
 ```
 
 ### 4. View Result
@@ -498,8 +502,8 @@ Content-Type: application/json
 | Parameter | Type   | Required | Default | Description                                    |
 |-----------|--------|----------|---------|------------------------------------------------|
 | `html`      | string | ✅ Yes   | -       | HTML content to convert                        |
+| `filename`  | string | ❌ No    | document.pdf | **Output filename for downloaded PDF** (auto-sanitized for security) |
 | `css`       | string | ❌ No    | -       | Additional CSS styles to apply                 |
-| `filename`  | string | ❌ No    | document.pdf | Output filename                         |
 | `base_url`  | string | ❌ No    | null    | Base URL for resolving relative URLs (images, stylesheets) |
 | `page_size` | string | ❌ No    | auto    | Page size: `auto` (content-sized), `A4`, `A3`, `Letter`, `Legal`, etc. |
 | `width`     | string | ❌ No    | null    | Fixed width for auto page size (e.g., `1200px`, `375px`) |
@@ -587,6 +591,7 @@ curl -X POST http://localhost:5000/convert \
   -H "X-API-Key: your-api-key-here" \
   -d '{
     "html": "<div style=\"width:800px;height:600px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:40px\"><h1 style=\"color:white\">Dashboard</h1></div>",
+    "filename": "dashboard-screenshot.pdf",
     "page_size": "auto",
     "margin": "0"
   }' \
@@ -605,6 +610,12 @@ response = requests.post(
             <div style="width:800px;height:600px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)">
                 <h1 style="color:white;padding:40px">Dashboard Screenshot</h1>
             </div>
+        ''',
+        'filename': 'dashboard-report.pdf',
+        'page_size': 'auto',
+        'margin': '0'
+    }
+)
         ''',
         'page_size': 'auto',  # Auto-size to content
         'margin': '0',        # Zero margins for pixel-perfect output
